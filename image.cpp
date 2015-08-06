@@ -8,9 +8,128 @@ using namespace Magick;
 #include <list>     // подключаем заголовок списка
 #include <iterator> // заголовок итераторов
 
+/*
+TODO:
+1. преобразование изображения в массивы (12 двумерных - список массивов)
+2. функция "собирания" картинки из массива (?)
+3. сегментация одного "массива" - уже есть: в дипломе
+4. что-то там про линейную фильтрацию "массива"
+*/
+
 void dump(string variable)
 {
 	cout << variable << endl;
+}
+
+void drawBinaryImages(Image src_image){
+	   Pixels src_view(src_image);
+		int width = src_image.size().width();
+	   int height = src_image.size().height();
+	   unsigned char r=0;
+
+    	// Construct drawing list 
+    	std::list<Magick::Drawable> drawList;	   	   
+
+		typedef std::list<Image>::iterator MyListIterator;
+		typedef Image *current_;
+		typedef std::list<Image> Images; //4*3 = 12 (4 for each channel)
+		Images BImages;
+		Image* currentBIpointer;
+
+		for (int ii=0; ii<12; ii++){
+			BImages.push_back(Image (Geometry(width, height), Color(MaxRGB, MaxRGB, MaxRGB, 0)));
+		}
+	  	MyListIterator iterator = BImages.begin();  //Берём первый элемент
+
+	  	int comporator = 128;
+
+		dump("Making binary images now. Slowly. Four seniour bits for all channels (total = 12)");
+	   //red channel
+		for (int i = 0; i<4; i++)
+		{
+			currentBIpointer=&*iterator;	//используем указатель currentBIpointer для ссылки на объект
+	 		currentBIpointer->type(TrueColorType);
+			currentBIpointer->modifyImage();	
+			currentBIpointer->strokeColor("white"); // Outline color 
+		   currentBIpointer->fillColor("black"); // Fill color 
+		   currentBIpointer->strokeWidth(1);
+			for ( ssize_t row = 0; row < height ; row++ ){
+				for ( ssize_t column = 0; column < width ; column++ ){
+					Color pixel_color = *(src_view.get(column,row,1,1));
+					ColorRGB pixel_rgb(pixel_color);
+					r = (unsigned char) 255*pixel_rgb.red();
+						if (comporator&r){
+							drawList.push_back(DrawablePoint(column,row));	
+						}
+				}
+			}
+			comporator/=2;
+			currentBIpointer->draw(drawList);
+			drawList.clear();
+			iterator++;
+			dump(to_string(i+1) + "/12 done");		
+		}
+		comporator = 128;
+	   //green channel
+		for (int i = 0; i<4; i++)
+		{
+			currentBIpointer=&*iterator;	//используем указатель currentBIpointer для ссылки на объект
+	 		currentBIpointer->type(TrueColorType);
+			currentBIpointer->modifyImage();	
+			currentBIpointer->strokeColor("white"); // Outline color 
+		   currentBIpointer->fillColor("black"); // Fill color 
+		   currentBIpointer->strokeWidth(1);
+			for ( ssize_t row = 0; row < height ; row++ ){
+				for ( ssize_t column = 0; column < width ; column++ ){
+					Color pixel_color = *(src_view.get(column,row,1,1));
+					ColorRGB pixel_rgb(pixel_color);
+					r = (unsigned char) 255*pixel_rgb.green();
+						if (comporator&r){
+							drawList.push_back(DrawablePoint(column,row));	
+						}
+				}
+			}
+			comporator/=2;
+			currentBIpointer->draw(drawList);
+			drawList.clear();
+			iterator++;
+			dump(to_string(i+5) + "/12 done");		
+		}
+		comporator = 128;
+		//blue channel
+		for (int i = 0; i<4; i++)
+		{
+			currentBIpointer=&*iterator;	//используем указатель currentBIpointer для ссылки на объект
+	 		currentBIpointer->type(TrueColorType);
+			currentBIpointer->modifyImage();	
+			currentBIpointer->strokeColor("white"); // Outline color 
+		   currentBIpointer->fillColor("black"); // Fill color 
+		   currentBIpointer->strokeWidth(1);
+			for ( ssize_t row = 0; row < height ; row++ ){
+				for ( ssize_t column = 0; column < width ; column++ ){
+					Color pixel_color = *(src_view.get(column,row,1,1));
+					ColorRGB pixel_rgb(pixel_color);
+					r = (unsigned char) 255*pixel_rgb.blue();
+						if (comporator&r){
+							drawList.push_back(DrawablePoint(column,row));	
+						}
+				}
+			}
+			comporator/=2;
+			currentBIpointer->draw(drawList);
+			drawList.clear();
+			iterator++;
+			dump(to_string(i+9) + "/12 done");		
+		}
+
+		//запись бинарных изображений
+		int i=0;
+	  	iterator = BImages.begin();  //Берём первый элемент:
+		while(iterator != BImages.end()){
+			currentBIpointer=&*iterator;	//используем указатель currentBIpointer для ссылки на объект
+			currentBIpointer->write("out/bi"+to_string(++i)+".jpg");	//Выполняем метод myAction объекта Object
+			iterator++;		//Берём следующий элемент
+		}
 }
 
 int main(int argc,char **argv)
@@ -29,13 +148,62 @@ int main(int argc,char **argv)
    // the read operation ensures that a failure to read the image file
    // doesn't render the image object useless.
    Image src_image;
+   Image seg_test;
+
+	unsigned char 
+		r = 0, g = 0, b = 0, 
+		r1 = 0, g1 = 0, b1 = 0, 
+		r2 = 0, g2 = 0, b2 = 0, 
+		temp1r = 0, temp2r = 0, temp1g = 0, 
+		temp2g = 0, temp1b = 0, temp2b = 0;
+	/*
+	double 
+		pi1r[8] = {0,0,0,0,0,0,0,0}, 
+		pi2r[8] = {0,0,0,0,0,0,0,0}, 
+		pi1g[8] = {0,0,0,0,0,0,0,0}, 
+		pi2g[8] = {0,0,0,0,0,0,0,0}, 
+		pi1b[8] = {0,0,0,0,0,0,0,0}, 
+		pi2b[8] = {0,0,0,0,0,0,0,0};
+	*/
+
+	//чтобы рисовать гистограммы
+	int histHeight = 350, histWidth = 800;
+	Image hist_image( Geometry(histWidth, histHeight), Color(MaxRGB, MaxRGB, MaxRGB, 0));
+   hist_image.strokeColor("olive"); // Outline color 
+   hist_image.fillColor("green"); // Fill color 
+   hist_image.strokeWidth(1);
+
+ 	// Construct drawing list 
+ 	std::list<Magick::Drawable> drawList;	   
+
+	histHeight-=5;
+	drawList.push_back(DrawableLine(5, histHeight, histWidth, histHeight)); //X ось
+	drawList.push_back(DrawableLine(5, 0, 5, histHeight)); // Y ось
+	histHeight+=5;
+
+   //Draw scale 0.1
+   for (int j = 1; j < 10; j++)
+   {
+       drawList.push_back(DrawableLine(
+           ((histWidth - 5) * j / 10) + 5,
+           histHeight,
+           ((histWidth - 5) * j / 10) + 5,
+           histHeight - 10));
+   }
+
+   hist_image.draw(drawList);
+   drawList.clear();		
 
    try {
    	// Read a file into image object
-  		src_image.read( "in/test.bmp" );
+  		// src_image.read( "in/test.bmp" );
+  		src_image.read( "in/cards.jpg" );
   		
-  		src_image.segment();
-  		src_image.write("out/segmentation test.jpeg");
+  		//seg_test.read( "in/test.bmp" );  		
+  		//seg_test.segment();
+  		//seg_test.write("out/segmentation test.jpeg");
+
+  		//drawBinaryImages(src_image);
 
 	   Pixels src_view(src_image);
 
@@ -51,85 +219,33 @@ int main(int argc,char **argv)
       if ((frameHeight&1) == 0) frameHeight--;
       frameHeightHalf = (frameHeight-1)/2;
 	   frameSquare = frameWidth * frameHeight;
-
-	   //@TODO: научиться создавать картинки
-		Image dst_image( Geometry(width, height), Color(MaxRGB, MaxRGB, MaxRGB, 0));
-
-		dst_image.type(TrueColorType);
-		dst_image.modifyImage();
-
-		typedef std::list<Image>::iterator MyListIterator;
-		typedef Image *current_;
-		typedef std::list<Image> Images; //4*3 = 12 (4 for each channel)
-		Images BImages;
-		Image* cObject;
-
-		for (int ii=0; ii<13;ii++){
-			BImages.push_back(dst_image);
-		}
-
-		//чтобы рисовать гистограммы
-		int histHeight = 350, histWidth = 800;
-		Image hist_image( Geometry(histWidth, histHeight), Color(MaxRGB, MaxRGB, MaxRGB, 0));
-
-	   hist_image.strokeColor("olive"); // Outline color 
-	   hist_image.fillColor("green"); // Fill color 
-	   hist_image.strokeWidth(1);
-
-    	// Construct drawing list 
-    	std::list<Magick::Drawable> drawList;	   
-
-		histHeight-=5;
-		drawList.push_back(DrawableLine(5, histHeight, histWidth, histHeight)); //X ось
-		drawList.push_back(DrawableLine(5, 0, 5, histHeight)); // Y ось
-		histHeight+=5;
-
-      //Draw scale 0.1
-      for (int j = 1; j < 10; j++)
-      {
-          drawList.push_back(DrawableLine(
-              ((histWidth - 5) * j / 10) + 5,
-              histHeight,
-              ((histWidth - 5) * j / 10) + 5,
-              histHeight - 10));
-      }
-
-      hist_image.draw(drawList);
-
-		Pixels dst_view(dst_image);
-
 		//dump
-		dump("width " + to_string(width) + "px, " + "height " + to_string(height) + "px");
-		dump("frame width " + to_string(frameWidth) + "px, " + "frame height " + to_string(frameHeight) + "px");
+		dump("Initial image width is " + to_string(width) + "px, and height is " + to_string(height) + "px");
+		dump("So, frame width " + to_string(frameWidth) + "px, " + "frame height " + to_string(frameHeight) + "px");
 
 		//описывает поток для записи данных в файл
 		ofstream f;
 		//открываем файл в режиме записи, режим ios::out устанавливается по умолчанию
 		f.open("out/output.txt", ios::out);
 
-		f<<"Width: "<<to_string(width)<<"px"<<endl;
-		f<<"Height: "<<to_string(height)<<"px"<<endl;
+		f<<"Initial image width: "<<to_string(width)<<"px"<<endl;
+		f<<"Initial image height: "<<to_string(height)<<"px"<<endl;
 		//dump end
-
+	   //@TODO: научиться создавать картинки нормально
+		Image dst_image(Geometry(width, height), Color(MaxRGB, MaxRGB, MaxRGB, 0));
+		dst_image.type(TrueColorType);
+		dst_image.modifyImage();
+		Pixels dst_view(dst_image);
+		/*
+		Image b_image(Geometry(width, height), Color(MaxRGB, MaxRGB, MaxRGB, 0));		
+		b_image.type(TrueColorType);
+		b_image.modifyImage();
+		b_image.strokeColor("black"); // Outline color 
+	   b_image.fillColor("white"); // Fill color 
+	   b_image.strokeWidth(1);
+	   */
 		// Выбираем все пиксели от позиции 0,0 до ширины и высоты (то есть просто все пиксели)
 		PixelPacket *pixels = dst_view.get(0,0,width,height);
-
-		/*
-		unsigned char 
-			r = 0, g = 0, b = 0, 
-			r1 = 0, g1 = 0, b1 = 0, 
-			r2 = 0, g2 = 0, b2 = 0, 
-			temp1r = 0, temp2r = 0, temp1g = 0, 
-			temp2g = 0, temp1b = 0, temp2b = 0;
-
-		double 
-			pi1r[8] = {0,0,0,0,0,0,0,0}, 
-			pi2r[8] = {0,0,0,0,0,0,0,0}, 
-			pi1g[8] = {0,0,0,0,0,0,0,0}, 
-			pi2g[8] = {0,0,0,0,0,0,0,0}, 
-			pi1b[8] = {0,0,0,0,0,0,0,0}, 
-			pi2b[8] = {0,0,0,0,0,0,0,0};
-		*/
 
 		//Declare a model of an image. Leaving the red chanel just for now?... smth's wrong
 		/*
@@ -141,9 +257,10 @@ int main(int argc,char **argv)
 
 		for ( ssize_t row = 0; row < height ; row++ ){
 			for ( ssize_t column = 0; column < width ; column++ ){
-				//Color pixel_color = *(src_view.get(column,row,1,1));
 				
-				//ColorRGB pixel_rgb(pixel_color);		
+				// Color pixel_color = *(src_view.get(column,row,1,1));
+				
+				// ColorRGB pixel_rgb(pixel_color);
 				
 				/*
 				dump(to_string(255*pixel_rgb.red()));
@@ -155,11 +272,7 @@ int main(int argc,char **argv)
 				//greench[row][column] = (unsigned char) 255*pixel_rgb.green();
 				//bluech[row][column] = (unsigned char) 255*pixel_rgb.blue();
 
-				/*
-				r = (unsigned char) 255*pixel_rgb.red();
-				g = (unsigned char) 255*pixel_rgb.green();
-				b = (unsigned char) 255*pixel_rgb.blue();
-				*/
+				
 				/*
 				f<<to_string(255*pixel_rgb.red())<<" ";
 				f<<to_string(255*pixel_rgb.green())<<" ";
@@ -173,7 +286,18 @@ int main(int argc,char **argv)
 				*/
 
 				//f<<to_string(pixel_color())<<" ";
-
+/*
+				Color pixel_color = *(src_view.get(column,row,1,1));
+				ColorRGB pixel_rgb(pixel_color);
+				r = (unsigned char) 255*pixel_rgb.red();
+				comporator=255;
+				for (int ii=0; ii<4; ii++){
+					if (comporator^r){
+						*(dst_view.get(column,row,1,1)) = Color("black"); 
+					}
+					comporator>>=1;					
+				}
+				*/
 				//*(dst_view.get(column,row,1,1)) = *(src_view.get(column,row,1,1)); 
 				// *pixels++=green; 
 			}
@@ -236,7 +360,7 @@ int main(int argc,char **argv)
 		}
 
 		//???
-		*(dst_view.get(0,0,width,height)) = *(src_view.get(0,0,width,height)); 
+		//*(dst_view.get(0,0,width,height)) = *(src_view.get(0,0,width,height)); 
 
 		//test
 		//dump(to_string(2&253));
@@ -268,14 +392,6 @@ int main(int argc,char **argv)
 
 		dst_view.sync();
 
-		//запись бинарных изображений
-		int i=0;
-	  	MyListIterator iterator = BImages.begin();  //Берём первый элемент:
-		while(iterator != BImages.end()){
-			cObject=&*iterator;	//используем указатель cObject для ссылки на объект
-			cObject->write("out/bi"+to_string(i++)+".jpg");;	//Выполняем метод myAction объекта Object
-			iterator++;		//Берём следующий элемент
-		}
 		//запись результата
 		dst_image.write("out/total.jpg");
 		hist_image.write("out/histogramm.jpg");
