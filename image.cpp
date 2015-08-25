@@ -36,7 +36,7 @@ void drawBinaryImages(Image src_image){
 		Images BImages;
 		Image* currentBIpointer;
 
-		for (int ii=0; ii<12; ii++){
+		for (int ii=0; ii<24; ii++){
 			BImages.push_back(Image (Geometry(width, height), Color(MaxRGB, MaxRGB, MaxRGB, 0)));
 		}
 	  	MyListIterator iterator = BImages.begin();  //Берём первый элемент
@@ -45,7 +45,7 @@ void drawBinaryImages(Image src_image){
 
 		dump("Making binary images now. Slowly. Four seniour bits for all channels (total = 12)");
 	   //red channel
-		for (int i = 0; i<4; i++)
+		for (int i=0; i<8; i++)
 		{
 			currentBIpointer=&*iterator;	//используем указатель currentBIpointer для ссылки на объект
 	 		currentBIpointer->type(TrueColorType);
@@ -67,11 +67,11 @@ void drawBinaryImages(Image src_image){
 			currentBIpointer->draw(drawList);
 			drawList.clear();
 			iterator++;
-			dump(to_string(i+1) + "/12 done");		
+			dump(to_string(i+1) + "/24 done");		
 		}
 		comporator = 128;
 	   //green channel
-		for (int i = 0; i<4; i++)
+		for (int i=0; i<8; i++)
 		{
 			currentBIpointer=&*iterator;	//используем указатель currentBIpointer для ссылки на объект
 	 		currentBIpointer->type(TrueColorType);
@@ -93,11 +93,11 @@ void drawBinaryImages(Image src_image){
 			currentBIpointer->draw(drawList);
 			drawList.clear();
 			iterator++;
-			dump(to_string(i+5) + "/12 done");		
+			dump(to_string(i+9) + "/24 done");		
 		}
 		comporator = 128;
 		//blue channel
-		for (int i = 0; i<4; i++)
+		for (int i=0; i<8; i++)
 		{
 			currentBIpointer=&*iterator;	//используем указатель currentBIpointer для ссылки на объект
 	 		currentBIpointer->type(TrueColorType);
@@ -119,7 +119,7 @@ void drawBinaryImages(Image src_image){
 			currentBIpointer->draw(drawList);
 			drawList.clear();
 			iterator++;
-			dump(to_string(i+9) + "/12 done");		
+			dump(to_string(i+17) + "/24 done");		
 		}
 
 		//запись бинарных изображений
@@ -149,13 +149,14 @@ int main(int argc,char **argv)
    // doesn't render the image object useless.
    Image src_image;
    Image seg_test;
-
+   /*
 	unsigned char 
 		r = 0, g = 0, b = 0, 
 		r1 = 0, g1 = 0, b1 = 0, 
 		r2 = 0, g2 = 0, b2 = 0, 
 		temp1r = 0, temp2r = 0, temp1g = 0, 
 		temp2g = 0, temp1b = 0, temp2b = 0;
+	*/		
 	/*
 	double 
 		pi1r[8] = {0,0,0,0,0,0,0,0}, 
@@ -196,14 +197,15 @@ int main(int argc,char **argv)
 
    try {
    	// Read a file into image object
-  		// src_image.read( "in/test.bmp" );
-  		src_image.read( "in/cards.jpg" );
+  		src_image.read( "in/test.bmp" );
+  		// src_image.read( "in/cards.jpg" );
   		
   		//seg_test.read( "in/test.bmp" );  		
   		//seg_test.segment();
   		//seg_test.write("out/segmentation test.jpeg");
 
-  		//drawBinaryImages(src_image);
+  		//нарисовать изображения (!)
+  		// drawBinaryImages(src_image); //(!)
 
 	   Pixels src_view(src_image);
 
@@ -247,46 +249,29 @@ int main(int argc,char **argv)
 		// Выбираем все пиксели от позиции 0,0 до ширины и высоты (то есть просто все пиксели)
 		PixelPacket *pixels = dst_view.get(0,0,width,height);
 
-		//Declare a model of an image. Leaving the red chanel just for now?... smth's wrong
-		/*
-		unsigned char **redch = new unsigned char*[height];
-		for(unsigned char i = 0; i < height; ++i) {
-	    	redch[i] = new unsigned char[width];
+		//Declare a model of an image.
+		unsigned char **channel_R = new unsigned char*[height];
+		unsigned char **channel_G = new unsigned char*[height];
+		unsigned char **channel_B = new unsigned char*[height];
+		for(int i = 0; i < height; i++) {
+			//dump("got here " + to_string(i));
+	    	channel_R[i] = new unsigned char[width];
+	    	channel_G[i] = new unsigned char[width];
+	    	channel_B[i] = new unsigned char[width];
 		}
-		*/
 
 		for ( ssize_t row = 0; row < height ; row++ ){
+			//dump(to_string(100*row/height)+"% done");
 			for ( ssize_t column = 0; column < width ; column++ ){
 				
-				// Color pixel_color = *(src_view.get(column,row,1,1));
-				
-				// ColorRGB pixel_rgb(pixel_color);
-				
-				/*
-				dump(to_string(255*pixel_rgb.red()));
-				dump(to_string(255*pixel_rgb.green()));
-				dump(to_string(255*pixel_rgb.blue()));
-				*/
-				
-				//redch[row][column] = (unsigned char) 255*pixel_rgb.red();
-				//greench[row][column] = (unsigned char) 255*pixel_rgb.green();
-				//bluech[row][column] = (unsigned char) 255*pixel_rgb.blue();
-
-				
-				/*
-				f<<to_string(255*pixel_rgb.red())<<" ";
-				f<<to_string(255*pixel_rgb.green())<<" ";
-				f<<to_string(255*pixel_rgb.blue())<<" ";
-				*/
+				Color pixel_color = *(src_view.get(column,row,1,1));
+				ColorRGB pixel_rgb(pixel_color);
+								
+				channel_R[row][column] = (unsigned char) 255*pixel_rgb.red();
+				channel_G[row][column] = (unsigned char) 255*pixel_rgb.green();
+				channel_B[row][column] = (unsigned char) 255*pixel_rgb.blue();
 
 				/*
-				f<<to_string(r)<<" ";
-				f<<to_string(g)<<" ";
-				f<<to_string(b)<<" ";
-				*/
-
-				//f<<to_string(pixel_color())<<" ";
-/*
 				Color pixel_color = *(src_view.get(column,row,1,1));
 				ColorRGB pixel_rgb(pixel_color);
 				r = (unsigned char) 255*pixel_rgb.red();
@@ -302,6 +287,8 @@ int main(int argc,char **argv)
 				// *pixels++=green; 
 			}
 		}
+
+		// dump("fun " + to_string(channel_R[10][20]));
 
 		for ( ssize_t row = 1; row < height ; row++ ){
 			for ( ssize_t column = 1; column < width ; column++ ){
@@ -368,9 +355,9 @@ int main(int argc,char **argv)
 		//Destructing the model of an image
 		/*
 		for(int i = 0; i < height; ++i) {
-	    	delete [] redch[i];
+	    	delete [] channel_R[i];
 		}
-		delete [] redch;
+		delete [] channel_R;
 		*/
 		/*
 		f<<"RED GREEN BLUE pi1,pi2: "<<endl;
