@@ -1,0 +1,8 @@
+*.jpg
+.idea/
+in/
+out/
+bi/
+image backup/
+.DS_Store
+*.txt
