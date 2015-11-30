@@ -665,9 +665,9 @@ void channelCompare(string path, string info, unsigned short **channel_R, unsign
 	// dump("push done");
 
 	double *part_ = new double[colours_.size()];
-	double *colours_array = new double[colours_.size()];
+	int *colours_array = new int[colours_.size()];
 	double *part_S = new double[colours_S.size()];
-	double *colours_array_S = new double[colours_S.size()];
+	int *colours_array_S = new int[colours_S.size()];
 
 	for (int i = 0; i < colours_.size(); i++)
 		part_[i] = 0;
@@ -739,6 +739,7 @@ void channelCompare(string path, string info, unsigned short **channel_R, unsign
 			}
 		}*/		
 
+	/*
     //если в эталоне больше цветов
     if(colours_.size()>colours_S.size()){
 		for ( ssize_t row = 0; row < height ; row++ ){
@@ -776,8 +777,132 @@ void channelCompare(string path, string info, unsigned short **channel_R, unsign
 		for (int i = colours_.size(); i < colours_S.size(); i++)
 			seg_error += part_S[i];			
     }
+    dump(info + " old segmentation error " + to_string(seg_error) + "%");
+    f<<"old segmentation error " + to_string(seg_error) + "%"<<endl;			
+    */
+
+	//реализуем табличку пересечений (хотя бы для себя)
+	int **match = new int*[colours_S.size()];
+	//не можешь контролировать ситуацию - создай дублёра
+	int **match_ = new int*[colours_S.size()];
+	for (int j = 0; j < colours_S.size(); j++){
+		match[j] = new int [colours_.size()];
+		match_[j] = new int [colours_.size()];		
+	}
+	for (int i = 0; i < colours_S.size(); i++){
+		for (int j = 0; j < colours_.size(); j++){
+			match[i][j] = 0;
+			match_[i][j] = 0;
+		}
+	}	
+
+	for ( ssize_t row = 0; row < height ; row++ ){
+		for ( ssize_t column = 0; column < width ; column++ ){
+			for (int i = 0; i < colours_S.size(); i++){
+				for (int j = 0; j < colours_.size(); j++){
+					if (channel_R[row][column] == colours_array[j]){
+						if (channel_R_S[row][column] == colours_array_S[i]){
+							match[i][j] += 1;
+						}
+					}
+				}
+			}
+		}
+	}
+
+    f<<"match table"<<endl;
+    f<<"           ";
+	for (int j = 0; j < colours_.size(); j++){
+		f<<"colour " + to_string(colours_array[j])<<' ';
+	}
+	f<<endl;
+
+	for (int i = 0; i < colours_S.size(); i++){
+		f<<"colour " + to_string(colours_array_S[i])<<" | ";
+		for (int j = 0; j < colours_.size(); j++){
+			f<<match[i][j]<<"      ";
+		}
+		f<<endl;
+	}
+
+	int colours_number = colours_.size();
+	if (colours_number > colours_S.size())
+		colours_number = colours_S.size();
+	int current_max = 0, current_i = 0, current_j = 0;
+	seg_error = 0;
+
+	for (int k=0; k<colours_number; k++){
+		//найти максимум 
+		current_max = 0;
+		for (int i = 0; i < colours_S.size(); i++){
+			for (int j = 0; j < colours_.size(); j++){
+				if (match[i][j] > current_max){
+					current_max = match[i][j];
+					current_i = i;
+					current_j = j;
+				}
+			}
+		}		
+		match_[current_i][current_j] = match[current_i][current_j];
+		//и зачистить столбец и строку с ним
+		for (int i = 0; i < colours_S.size(); i++){
+			// if (i != current_i)
+				match[i][current_j] = 0;
+		}
+		for (int j = 0; j < colours_.size(); j++){
+			// if (j != current_j)
+				match[current_i][j] = 0;
+		}
+		
+	}
+
+    f<<"match table - analyzed"<<endl;
+    f<<"           ";
+	for (int j = 0; j < colours_.size(); j++){
+		f<<"colour " + to_string(colours_array[j])<<' ';
+	}
+	f<<endl;
+
+	seg_error = 0;
+	for (int i = 0; i < colours_S.size(); i++){
+		f<<"colour " + to_string(colours_array_S[i])<<" | ";
+		for (int j = 0; j < colours_.size(); j++){
+			f<<match_[i][j]<<"      ";
+			seg_error += match_[i][j];
+		}
+		f<<endl;
+	}
+
+	seg_error = square - seg_error;
+	seg_error /= square/100;
+
     dump(info + " segmentation error " + to_string(seg_error) + "%");
     f<<"segmentation error " + to_string(seg_error) + "%"<<endl;
+
+    //раскраска
+	for ( ssize_t row = 0; row < height ; row++ ){
+		for ( ssize_t column = 0; column < width ; column++ ){
+			for (int i = 0; i < colours_S.size(); i++){
+				for (int j = 0; j < colours_.size(); j++){
+					if (channel_R[row][column] == colours_array[j]){
+						if (channel_R_S[row][column] == colours_array_S[i]){
+							if (match_[i][j] != 0)
+								channel_R_C[row][column] = 255;
+							else
+								channel_R_C[row][column] = 0;
+						}
+					}
+				}
+			}
+		}
+	}
+
+    for (int j = 0; j < colours_S.size(); j++){
+    	delete [] match[j];
+    	delete [] match_[j];
+    }
+    delete [] match;
+    delete [] match_;
 }
 
 void compareImages(string path, Image etalon_image, Image secondary_image, string info){
@@ -927,7 +1052,9 @@ int main(int argc,char **argv){
 	Image src_image;
 	Image seg_test;
 
-	string imagepath = "in/lenin100.jpg";
+	// string imagepath = "in/7637066.jpg"; //a plane
+	string imagepath = "in/lenin100.jpg"; 
+	// string imagepath = "in/17526af83f295c67-2729bf8c04e7e751.jpg";
 
 	try{
 		// Read a file into image object
