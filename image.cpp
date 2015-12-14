@@ -1051,10 +1051,26 @@ int main(int argc,char **argv){
 	// doesn't render the image object useless.
 	Image src_image;
 	Image seg_test;
+	Image seg_etalon;
 
 	// string imagepath = "in/7637066.jpg"; //a plane
 	string imagepath = "in/lenin100.jpg"; 
+	// string imagepath = "in/bufer_obmena01.jpg"; 
+	// string imagepath = "in/afreightim001.png"; 
+	
 	// string imagepath = "in/17526af83f295c67-2729bf8c04e7e751.jpg";
+
+	//etalon path
+	// string imagepath_etalon = "in/afreightseg001.png";
+	string imagepath_etalon = "in/lenin100.jpg";
+
+	try{
+		seg_etalon.read(imagepath_etalon);
+	}
+	catch( Exception &error_ ){       
+		cout << "Caught exception: " << error_.what() << endl;
+		f << "Caught exception: " << error_.what() << endl;
+	}    	
 
 	try{
 		// Read a file into image object
@@ -1079,7 +1095,7 @@ int main(int argc,char **argv){
 		if ((frameWidth&1) == 0) frameWidth++;
 			frameWidthHalf = (frameWidth+1)/2;
 		// frameHeight = 21;		
-		frameHeight = log(height)*pow(height,(1/(log(height))));;
+		frameHeight = log(height)*pow(height,(1/(log(height))));
 		if ((frameHeight&1) == 0) frameHeight++;
 			frameHeightHalf = (frameHeight+1)/2;
 		frameSquare = frameWidth * frameHeight;
@@ -1144,7 +1160,7 @@ int main(int argc,char **argv){
 		channelSegmentation(path, "green channel", channel_G, channel_G_S, width, height, 6, points_number, frameWidth, frameHeight);
 		channelSegmentation(path, "blue channel", channel_B, channel_B_S, width, height, 6, points_number, frameWidth, frameHeight);*/
 
-		for (int i=0; i<2; i++){
+		for (int i=0; i<1; i++){
 			channelSegmentation(path, "red channel", channel_R, channel_R_S, width, height, 7-i, points_number, frameWidth, frameHeight);
 			channelSegmentation(path, "green channel", channel_G, channel_G_S, width, height, 7-i, points_number, frameWidth, frameHeight);
 			channelSegmentation(path, "blue channel", channel_B, channel_B_S, width, height, 7-i, points_number, frameWidth, frameHeight);			
@@ -1185,6 +1201,7 @@ int main(int argc,char **argv){
 		dst_view.sync();
 
 		compareImages(path, seg_test, dst_image, "magic vs ours");
+		compareImages(path, seg_etalon, dst_image, "etalon vs ours");
 
 		//запись результата
 		dst_image.write(path + "/output.bmp");
