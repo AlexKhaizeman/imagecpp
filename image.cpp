@@ -147,7 +147,7 @@ void drawBinaryImages(Image src_image){
 	}
 }
 
-void channelSegmentation(string path, string info, unsigned short **channel_R, unsigned short **channel_R_S, int width, int height, int bi, int points_number, int frameWidth, int frameHeight){
+void channelSegmentation(string path, string info, unsigned short **channel_R, unsigned short **channel_R_S, int width, int height, int bi, int points_number, int frameWidth, int frameHeight, int color_header){
 	ofstream f;
 	f.open(path + "/output.txt", ios::app);
 	f<<"	" +info<<endl;
@@ -175,8 +175,8 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	bool *minims = new bool[points_number];
 	short 
 		minims_counter = 0, 
-		minims_flag = 0, //кто ты теперь?
-		color_header = 0;		
+		minims_flag = 0; //кто ты теперь?
+		// color_header = 0;		
 
 	// double **pi1 = new double*[height];
 	// double **pi2 = new double*[height];
@@ -259,8 +259,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 					// index++;
 					// if (frameRow>0)
 					// 	if(comporator&channel_R[frameRow][frameColumn]&channel_R[frameRow-1][frameColumn] || comporator&!channel_R[frameRow][frameColumn]&!channel_R[frameRow-1][frameColumn])
-					// 		test += 1.0;
-						
+					// 		test += 1.0;						
 
 					element++;
 					if(frameColumn == (column - frameWidthHalf) && frameRow > (row - frameHeightHalf)){
@@ -269,8 +268,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 							// test+=1;
 						}
 						else{
-							sequences++;
-							
+							sequences++;							
 						}
 					}
 					else{
@@ -279,8 +277,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 							// test+=1;
 						}
 						else{
-							sequences++;
-							
+							sequences++;							
 						}
 					}
 					// pi для центрального элемента += текущее хи
@@ -458,10 +455,11 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 
 
 	//@TODO: реализовать такую штуку: типа если сегментов получилось мало - то и занимать мало разрядов...
-	if (comporator == 128)
+	/*if (comporator == 128)
 		color_header = 4;
 	if (comporator == 64)
-		color_header = 0;
+		color_header = 4; //0*/
+
 	/*if (comporator == 32)
 		color_header = 0;*/
 
@@ -521,7 +519,6 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	delete [] points;
 	delete [] minims;
 	hist_image.write(path + "/histogramm " + info + " " + to_string(bi) + ".jpg");
-
 }
 
 void garbge(int argc,char **argv){
@@ -590,7 +587,6 @@ void garbge(int argc,char **argv){
 	catch( Exception &error_ ){       
 		cout <<"Caught exception: " << error_.what() << endl;
 	}    
-
 }
 
 void channelCompare(string path, string info, unsigned short **channel_R, unsigned short **channel_R_S, unsigned short **channel_R_C, int width, int height){
@@ -1026,6 +1022,7 @@ void compareImages(string path, Image etalon_image, Image secondary_image, strin
 }
 
 int main(int argc,char **argv){
+	dump("Started.");
 	std::time_t t_start = std::time(0);
 	string path = "out/" + to_string(t_start);
 	const char *path_ = path.c_str();
@@ -1052,25 +1049,35 @@ int main(int argc,char **argv){
 	Image src_image;
 	Image seg_test;
 	Image seg_etalon;
+	Image seg_etalon_1;
 
 	// string imagepath = "in/7637066.jpg"; //a plane
-	string imagepath = "in/lenin100.jpg"; 
+	string imagepath = "in/Text0,5_0,95.bmp"; 
+	// string imagepath = "in/lenin100.jpg"; 
+	// string imagepath = "in/12 copy.jpg"; 
 	// string imagepath = "in/bufer_obmena01.jpg"; 
-	// string imagepath = "in/afreightim001.png"; 
-	
+	// string imagepath = "in/afreightim001.png"; 	
 	// string imagepath = "in/17526af83f295c67-2729bf8c04e7e751.jpg";
 
-	//etalon path
-	// string imagepath_etalon = "in/afreightseg001.png";
-	string imagepath_etalon = "in/lenin100.jpg";
+	bool etalon_flag = true, colourfull = true;
 
-	try{
-		seg_etalon.read(imagepath_etalon);
-	}
-	catch( Exception &error_ ){       
-		cout << "Caught exception: " << error_.what() << endl;
-		f << "Caught exception: " << error_.what() << endl;
-	}    	
+	if (etalon_flag){
+		//etalon path
+		// string imagepath_etalon = "in/afreightseg001.png";
+		string imagepath_etalon = "in/Razm28_1000.bmp";
+		string imagepath_etalon_1 = "in/Text0,5_0,95.bmpresult.bmp"; //bulk
+		//if there is no etalon
+		// string imagepath_etalon = imagepath;
+
+		try{
+			seg_etalon.read(imagepath_etalon);
+			seg_etalon_1.read(imagepath_etalon_1);
+		}
+		catch( Exception &error_ ){       
+			cout << "Caught exception: " << error_.what() << endl;
+			f << "Caught exception: " << error_.what() << endl;
+		}
+	}	
 
 	try{
 		// Read a file into image object
@@ -1090,12 +1097,12 @@ int main(int argc,char **argv){
 		int square = width * height;
 
 		//немного про параметры окна log(x)*(x^(1/(log(x))));
-		// frameWidth = 21;		
-		frameWidth = log(width)*pow(width,(1/(log(width))));
+		frameWidth = 35;		
+		// frameWidth = pow(log(width)/log(sqrt(2)), 1.11);		
 		if ((frameWidth&1) == 0) frameWidth++;
 			frameWidthHalf = (frameWidth+1)/2;
-		// frameHeight = 21;		
-		frameHeight = log(height)*pow(height,(1/(log(height))));
+		frameHeight = 35;		
+		// frameHeight = pow(log(height)/log(sqrt(2)), 1.11);
 		if ((frameHeight&1) == 0) frameHeight++;
 			frameHeightHalf = (frameHeight+1)/2;
 		frameSquare = frameWidth * frameHeight;
@@ -1117,20 +1124,24 @@ int main(int argc,char **argv){
 		unsigned short **channel_R = new unsigned short*[height];
 		unsigned short **channel_G = new unsigned short*[height];
 		unsigned short **channel_B = new unsigned short*[height];
+		unsigned short **channel_Grey = new unsigned short*[height];
 		for(int i = 0; i < height; i++) {
 			channel_R[i] = new unsigned short[width];
 			channel_G[i] = new unsigned short[width];
 			channel_B[i] = new unsigned short[width];
+			channel_Grey[i] = new unsigned short[width];
 		}
 
 		//Declare a model of a result image.
 		unsigned short **channel_R_S = new unsigned short*[height];
 		unsigned short **channel_G_S = new unsigned short*[height];
 		unsigned short **channel_B_S = new unsigned short*[height];
+		unsigned short **channel_Grey_S = new unsigned short*[height];
 		for(int i = 0; i < height; i++) {
 			channel_R_S[i] = new unsigned short[width];
 			channel_G_S[i] = new unsigned short[width];
 			channel_B_S[i] = new unsigned short[width];
+			channel_Grey_S[i] = new unsigned short[width];
 		}
 
 		Color pixel_color = *(src_view.get(1,1,1,1));
@@ -1144,6 +1155,7 @@ int main(int argc,char **argv){
 				channel_R[row][column] = (unsigned short) 255*pixel_rgb.red();
 				channel_G[row][column] = (unsigned short) 255*pixel_rgb.green();
 				channel_B[row][column] = (unsigned short) 255*pixel_rgb.blue();
+				channel_Grey[row][column] = (channel_R[row][column]+channel_G[row][column]+channel_B[row][column])/3;
 
 				// test
 				/*
@@ -1160,12 +1172,40 @@ int main(int argc,char **argv){
 		channelSegmentation(path, "green channel", channel_G, channel_G_S, width, height, 6, points_number, frameWidth, frameHeight);
 		channelSegmentation(path, "blue channel", channel_B, channel_B_S, width, height, 6, points_number, frameWidth, frameHeight);*/
 
-		for (int i=0; i<1; i++){
-			channelSegmentation(path, "red channel", channel_R, channel_R_S, width, height, 7-i, points_number, frameWidth, frameHeight);
-			channelSegmentation(path, "green channel", channel_G, channel_G_S, width, height, 7-i, points_number, frameWidth, frameHeight);
-			channelSegmentation(path, "blue channel", channel_B, channel_B_S, width, height, 7-i, points_number, frameWidth, frameHeight);			
+		if (!colourfull)
+		{
+			for (int i=1; i<2; i++){
+				// last argument is color_header. is 4 for bright colours, 0 for fade colours... (())
+				channelSegmentation(path, "red channel", channel_R, channel_R_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
+				channelSegmentation(path, "green channel", channel_G, channel_G_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
+				channelSegmentation(path, "blue channel", channel_B, channel_B_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);			
+			}
+			//рисуем итоговую карту
+			for ( ssize_t row = 0; row < height ; row++ ){
+				for ( ssize_t column = 0; column < width ; column++ ){
+					pixel_color = ColorRGB((double) channel_R_S[row][column]/255, (double) channel_G_S[row][column]/255, (double) channel_B_S[row][column]/255);
+					*(dst_view.get(column,row,1,1)) = pixel_color;
+				}
+			}		
 		}
+		else
+		{
+			for (int i=1; i<2; i++){
+				// last argument is color_header. is 4 for bright colours, 0 for fade colours... (())
+				channelSegmentation(path, "grey", channel_Grey, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
+				// channelSegmentation(path, "red channel", channel_R, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
+				// channelSegmentation(path, "green channel", channel_G, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
+				// channelSegmentation(path, "blue channel", channel_B, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);			
 
+			}
+			//рисуем итоговую карту
+			for ( ssize_t row = 0; row < height ; row++ ){
+				for ( ssize_t column = 0; column < width ; column++ ){
+					pixel_color = ColorRGB((double) channel_Grey_S[row][column]/255, (double) channel_Grey_S[row][column]/255, (double) channel_Grey_S[row][column]/255);
+					*(dst_view.get(column,row,1,1)) = pixel_color;
+				}
+			}	
+		}
 		/*f<<"Среднее значение вероятности перехода для всего изображения: "<<endl;		
 		f<<"RED pi1 , pi2: "<<endl;		
 		for (int i = 0; i<8; i++) {f<<1-pi1r[i]<<" , "<<1-pi2r[i]<<endl;}
@@ -1174,34 +1214,34 @@ int main(int argc,char **argv){
 		f<<"BLUE pi1 , pi2: "<<endl;		
 		for (int i = 0; i<8; i++) {f<<1-pi1b[i]<<" , "<<1-pi2b[i]<<endl;}*/
 
-		//рисуем итоговую карту
-		for ( ssize_t row = 0; row < height ; row++ ){
-			for ( ssize_t column = 0; column < width ; column++ ){
-				pixel_color = ColorRGB((double) channel_R_S[row][column]/255, (double) channel_G_S[row][column]/255, (double) channel_B_S[row][column]/255);
-				*(dst_view.get(column,row,1,1)) = pixel_color;
-			}
-		}		
+
 
 		//Destructing the model of an image
 		for(int i = 0; i < height; ++i) {
 			delete [] channel_R[i];
 			delete [] channel_G[i];
 			delete [] channel_B[i];
+			delete [] channel_Grey[i];
 			delete [] channel_R_S[i];
 			delete [] channel_G_S[i];
 			delete [] channel_B_S[i];
+			delete [] channel_Grey_S[i];
 		}
 		delete [] channel_R;
 		delete [] channel_G;
 		delete [] channel_B;
+		delete [] channel_Grey;
 		delete [] channel_R_S;
 		delete [] channel_G_S;
 		delete [] channel_B_S;
+		delete [] channel_Grey_S;
 
 		dst_view.sync();
 
 		compareImages(path, seg_test, dst_image, "magic vs ours");
-		compareImages(path, seg_etalon, dst_image, "etalon vs ours");
+		if (etalon_flag)
+			compareImages(path, seg_etalon, dst_image, "etalon vs ours");
+			compareImages(path, seg_etalon_1, seg_etalon, "etalon vs etalon");
 
 		//запись результата
 		dst_image.write(path + "/output.bmp");
