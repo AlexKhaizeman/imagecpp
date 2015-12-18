@@ -262,6 +262,8 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		for ( ssize_t column = 0; column < width ; column++ ){
 			pi_average[row][column] = Round(pi_average[row][column], accuracy);
 			// f<<to_string(pi_average[row][column])+ " "<<endl;
+			if (pi_average[row][column] < 0.5)
+				pi_average[row][column] = 0.5;
 		}
 	}
 	dump("pi rounded ...");
@@ -349,7 +351,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		color_header = 0;*/
 
 	//segmentation
-	for ( ssize_t row = 0; row < height ; row++ ){
+	/*for ( ssize_t row = 0; row < height ; row++ ){
 		for ( ssize_t column = 0; column < width ; column++ ){
 			minims_flag = 0;
 			for (int j = 0; j <= points_number; j++){
@@ -370,12 +372,17 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 			}
 		}
 	}
-	points_number++;
+	points_number++;*/
 	dump("segmented ... ");
 
 	for ( ssize_t row = 0; row < height ; row++ ){
 		for ( ssize_t column = 0; column < width ; column++ ){
-			channel_R_S[row][column] = 255 - channel_R_S[row][column];
+			
+			if (pi_average[row][column] <= 0.7){
+				channel_R_S[row][column] = 255;
+			}
+
+			// channel_R_S[row][column] = 255 - channel_R_S[row][column];
 		}
 	}	
 
