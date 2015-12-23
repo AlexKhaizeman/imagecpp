@@ -47,13 +47,13 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		//points
 		current_points_number = 0,
 		frameHeightHalf = frameHeight / 2,
-		frameWidthHalf = frameWidth / 2,
-		element = 0,
-		sequences = 0;
+		frameWidthHalf = frameWidth / 2;
 
 	double 
 		accuracy = 1 / ((double) points_number),
-		max_point = 0;
+		max_point = 0,
+		element = 0,
+		sequences = 0;
 
 	//points
 	double *points = new double[points_number];
@@ -61,30 +61,22 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	short 
 		minims_counter = 0, 
 		minims_flag = 0; //кто ты теперь?
-		// color_header = 0;		
+		// color_header = 0;
 
 	// double **pi1 = new double*[height];
 	// double **pi2 = new double*[height];
 	double **pi = new double*[height]; // (!) pi - для центра окна - среднее по окну (типа симметричные пи1-пи2)
 	double **pi_average = new double*[height];
-	double **PI = new double*[height];
+	double **PI = new double*[height]; //PI = pi1*pi2/pi3
 	for(int i = 0; i < height; i++) {
 		// pi1[i] = new double[width];
 		// pi2[i] = new double[width];
 		pi[i] = new double[width];
 		PI[i] = new double[width];
-		pi_average[i] = new double[width];
+		pi_average[i] = new double[width]; //PI average
 	}		
 
-	/*for ( ssize_t row = 0; row < height ; row++ ){
-		for ( ssize_t column = 0; column < width ; column++ ){
-			channel_S[row][column] = channel[row][column];
-		}
-	}*/
-	
-	// dump("Accuracy = " + to_string(accuracy));
 	f<<"Accuracy = " + to_string(accuracy)<<endl;
-	// dump("Number of points is " + to_string(points_number));
 	f<<"Number of points is " + to_string(points_number)<<endl;
 
 	//чтобы рисовать гистограммы
@@ -116,85 +108,96 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	hist_image.draw(drawList);
 	drawList.clear();
 
-	// // for all binary images we segment do:
-	// for (int i=0; i<seg_number; i++){}
-	// у нас сейчас этого нет, мы тут делаем для текущего bi
-		
-	//PI = 0 - обнуление?!
+	//обнуление
 	for ( ssize_t row = 0; row < height ; row++ ){
 		for ( ssize_t column = 0; column < width ; column++ ){
 			PI[row][column] = 0.0;
 			pi[row][column] = 0.0;					
 			pi_average[row][column] = 0.0;					
+			channel_R[row][column] = channel_R[row][column]&comporator; //! вычленение бита сразу
 		}
 	}	
 
-	//pi1=pi2			
-	//test
-	// int index = 0;
-	// double test = 0.0;
-	for ( ssize_t row = frameHeightHalf; row < height - frameHeightHalf; row++ ){
-		for ( ssize_t column = frameWidthHalf; column < width - frameWidthHalf; column++ ){
-			element = 1;
-			sequences = 1;
-			pi[row][column] = 0.0;
-			// test = 0.0;
-			for ( ssize_t frameRow = row - frameHeightHalf+1; frameRow < row + frameHeightHalf; frameRow++ ){
-				for ( ssize_t frameColumn = column - frameWidthHalf+1; frameColumn < column + frameWidthHalf; frameColumn++ ){
-					// index++;
-					// if (frameRow>0)
-					// 	if(comporator&channel_R[frameRow][frameColumn]&channel_R[frameRow-1][frameColumn] || comporator&!channel_R[frameRow][frameColumn]&!channel_R[frameRow-1][frameColumn])
-					// 		test += 1.0;						
+	unsigned short  *biElementsFrame = new unsigned short [frameSquare];
+	// unsigned short  *frameElements = new unsigned short [frameSquare];
+	// unsigned short  *frameSequences = new unsigned short [frameSquare];
+	int index;
+	double chi;
 
-					element++;
-					if(frameColumn == (column - frameWidthHalf) && frameRow > (row - frameHeightHalf)){
-						if ((channel_R[frameRow][frameColumn]&channel_R[frameRow-1][column + frameWidthHalf]&comporator)||(!channel_R[frameRow][frameColumn]&!channel_R[frameRow-1][column + frameWidthHalf]&comporator)){
-							element++;
-							// test+=1;
-						}
-						else{
-							sequences++;							
-						}
-					}
-					else{
-						if ((channel_R[frameRow][frameColumn]&channel_R[frameRow][frameColumn-1]&comporator)||(!channel_R[frameRow][frameColumn]&!channel_R[frameRow][frameColumn-1]&comporator)){
-							element++;
-							// test+=1;
-						}
-						else{
-							sequences++;							
-						}
-					}
-					// pi для центрального элемента += текущее хи
-					pi[row][column] += 1 - 1 / (element / sequences);
-				}
-			}
+    for (ssize_t row = 0; row < width; row++)//вероятность pi1 pi2
+    {
+        for (ssize_t column = 0; column < height; column++)
+        {
+            if (row > frameWidthHalf && column > frameHeightHalf && row < (width - frameWidthHalf) && column < (height - frameHeightHalf))
+            {
+                index = 0; //make a 1d copy
+                for (ssize_t frameRow = (row - frameWidthHalf); frameRow <= (row + frameWidthHalf); frameRow++)//frame circle
+                {
+                    for (ssize_t frameColumn = (column - frameHeightHalf); frameColumn <= (column + frameHeightHalf); frameColumn++)
+                    {                    	
+                        biElementsFrame[index] = channel_R[frameRow][frameColumn];
+                        index++;
+                    }
+                }
 
-			// test /= frameSquare;
-			// f<<"plain test: " + to_string(test)<<endl;
-			// f<<" " + to_string(element) + " / " + to_string(sequences) + " / " + to_string(frameSquare) + " = " + to_string(element / sequences / frameSquare)<<endl;
-			pi[row][column] /= frameSquare;
-			// pi[row][column] = test;
-			// if(index>frameSquare)
-				// dump(index);
-			// index=0;
-			// //warning-dump
-			// if (pi[row][column] < 0){
-			// 	f<<"warning: pi<0: " + to_string(pi[row][column])+" row: " + to_string(row) + " column: " + to_string(column)<<endl;
-			// 	f<<" " + to_string(element) + " / " + to_string(sequences) + " / " + to_string(frameSquare) + " = " + to_string(element / sequences / frameSquare)<<endl;
-			// 	pi[row][column] = 0.001;
-			// }
-			// if (pi[row][column] > 1.0){
-			// 	f<<"warning: pi>1: " + to_string(pi[row][column])+" row: " + to_string(row) + " column: " + to_string(column)<<endl;
-			// 	// f<<" " + to_string(element) + " / " + to_string(sequences) + " / " + to_string(frameSquare) + " = " + to_string(element / sequences / frameSquare)<<endl;
+                // good but long
+                /*frameElements[0] = 1;
+                frameSequences[0] = 1;
 
-			// 	pi[row][column] = 0.999;
-			// }				
-		}
-	}
+                for (int j = 1; j < frameSquare; j++)
+                {
+                    frameElements[j] = frameElements[j - 1];
+                    frameSequences[j] = frameSequences[j - 1];
+                    if (biElementsFrame[j - 1] == biElementsFrame[j])
+                    { frameElements[j]++; }
+                    else
+                    { frameSequences[j]++; }
+                    frameElements[j]++;
+                }
+                
+                 // var 1
+                pi[row][column] = frameSquare;
+                for (index = 0; index < frameSquare; index++)
+                {
+                    pi[row][column] -= (double) frameSequences[index] / frameElements[index];
+                }*/
+
+                /* // var 2
+                pi[row][column] = 0.0;
+                for (index = 0; index < frameSquare; index++)
+                {
+                    pi[row][column] -= (double) frameSequences[index] / (double) frameElements[index];
+                }
+                pi[row][column] += (double) frameSquare;*/
+
+				
+				//good
+				element = 1;
+                sequences = 1;
+                pi[row][column] = frameSquare;
+                for (int j = 1; j < frameSquare; j++)
+                {
+                    if (biElementsFrame[j - 1] == biElementsFrame[j])
+                    	{ element++; }
+                    else
+                		{ sequences++; }
+                    element++;                    
+					pi[row][column] -= (double) sequences / (double) element;
+                }
+                
+            }
+            else
+            {
+            }
+
+            pi[row][column] = (double) pi[row][column]/ (double) frameSquare;            
+        }
+    }
+
+
 	dump("pi1 and pi2 counted...");
 
-	//@TODO: исправить вычисление ^
+	//@TODO: исправить вычисление ^ :)
 	for ( ssize_t row = 0; row < height ; row++ ){
 		for ( ssize_t column = 0; column < width ; column++ ){								
 			if (pi[row][column] < 0){
@@ -209,48 +212,52 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 			}						
 		}
 	}		
-	dump("pi checked...");
+	dump("pi1 and pi2 checked ...");
+
+	double alpha, aalpha, pi3;
 
 	for ( ssize_t row = 1; row < height ; row++ ){
 		for ( ssize_t column = 1; column < width ; column++ ){
-			//0?1 1?0
-			if (channel_R[row-1][column]&channel_R[row][column-1]&comporator){
+
+            alpha = pi[row][column];
+            aalpha = 1 - alpha;
+
+			//0x1 1x0
+			if (channel_R[row-1][column] != channel_R[row][column-1]) {
 				PI[row][column] = 0.5;
+				// dump(0.5);
 			}
-			//0?0 1?1
+			//0x0 1x1
 			else{
+	            pi3 = (double) (alpha * alpha + aalpha * aalpha);
+
 				//000 111
-				if (channel_R[row-1][column]&channel_R[row][column]&comporator){
-					PI[row][column] = (double) pi[row][column]*pi[row][column]/(pi[row][column]*pi[row][column]+(1-pi[row][column])*(1-pi[row][column]));
+				if (channel_R[row][column] == channel_R[row][column-1]){
+					PI[row][column] = (double) (alpha * alpha / pi3); 
 				}
 				//010 101
 				else{
-					PI[row][column] = (double) (1-pi[row][column])*(1-pi[row][column])/(pi[row][column]*pi[row][column]+(1-pi[row][column])*(1-pi[row][column]));
+					
+					PI[row][column] = (double) (aalpha * aalpha / pi3); 
 				}
 			}
 		}
 	}		
-	dump("PI counted ...");
+	dump("PI 3 counted ...");
 
 	//pi frame avarage
 	for ( ssize_t row = frameHeightHalf; row < height - frameHeightHalf; row++ ){
 		for ( ssize_t column = frameWidthHalf; column < width - frameWidthHalf; column++ ){
 			pi_average[row][column] = 0;
-			for ( ssize_t frameRow = row - frameHeightHalf; frameRow < row + frameHeightHalf; frameRow++ ){
-				for ( ssize_t frameColumn = column - frameWidthHalf; frameColumn < column + frameWidthHalf; frameColumn++ ){
-					pi_average[row][column] += PI[frameRow][frameColumn];
+			for ( ssize_t frameRow = row - frameHeightHalf; frameRow <= row + frameHeightHalf; frameRow++ ){
+				for ( ssize_t frameColumn = column - frameWidthHalf; frameColumn <= column + frameWidthHalf; frameColumn++ ){
+					pi_average[row][column] += (double) PI[frameRow][frameColumn];
 				}
 			}
-			pi_average[row][column] /= frameSquare;				
+			pi_average[row][column] = (double) pi_average[row][column] / (double) frameSquare;				
 		}
 	}
-	dump("pi-s frame average counted ...");
-
-	/*for ( ssize_t row = 0; row < height ; row++ ){
-		for ( ssize_t column = 0; column < width ; column++ ){			
-			pi_average[row][column] = 1 - pi_average[row][column];		
-		}
-	}*/
+	dump("Pi3-s frame average counted ...");
 
 	for (int j = 0; j < points_number; j++)
 		points[j] = 0;
@@ -262,8 +269,14 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		for ( ssize_t column = 0; column < width ; column++ ){
 			pi_average[row][column] = Round(pi_average[row][column], accuracy);
 			// f<<to_string(pi_average[row][column])+ " "<<endl;
-			if (pi_average[row][column] < 0.5)
-				pi_average[row][column] = 0.5;
+/*			if (pi_average[row][column] < 0.5)
+				pi_average[row][column] = 0.5;*/
+			if (pi_average[row][column] <= 0){
+				pi_average[row][column] = 0.001;
+			}
+			if (pi_average[row][column] >= 1.0){
+				pi_average[row][column] = 0.999;
+			}				
 		}
 	}
 	dump("pi rounded ...");
@@ -272,16 +285,12 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		for ( ssize_t column = 0; column < width ; column++ ){
 			current_points_number = (int)(pi_average[row][column] / accuracy);
 			if (current_points_number >= points_number){
-				dump(to_string(current_points_number));
-				dump(to_string(pi_average[row][column]));
+				f<<"warning more: in " + to_string(current_points_number)+" pi is: " + to_string(pi_average[row][column])<<endl;
 				current_points_number = points_number - 1;
-				// dump("warning more");
 			}
 			if (current_points_number<0){
-				dump(to_string(current_points_number));
-				dump(to_string(pi_average[row][column]));
+				f<<"warning zero: in " + to_string(current_points_number)+" pi is: " + to_string(pi_average[row][column])<<endl;				
 				current_points_number = 0;
-				// dump("warning zero");
 			}
 			points[current_points_number]++;					
 		}
@@ -327,6 +336,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	points_number--;
 	minims_counter=1;
 
+	//реализовать минимум не только по двум соседним
 	for (int j = 1; j < points_number; j++){
 		if ((points[j]<=points[j-1] & points[j]<points[j+1])||(points[j]<points[j-1] & points[j]<=points[j+1])){
 			if (minims_counter<8){
@@ -351,7 +361,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		color_header = 0;*/
 
 	//segmentation
-	/*for ( ssize_t row = 0; row < height ; row++ ){
+	for ( ssize_t row = 0; row < height ; row++ ){
 		for ( ssize_t column = 0; column < width ; column++ ){
 			minims_flag = 0;
 			for (int j = 0; j <= points_number; j++){
@@ -372,10 +382,10 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 			}
 		}
 	}
-	points_number++;*/
+	points_number++;
 	dump("segmented ... ");
 
-	for ( ssize_t row = 0; row < height ; row++ ){
+	/*for ( ssize_t row = 0; row < height ; row++ ){
 		for ( ssize_t column = 0; column < width ; column++ ){
 			
 			if (pi_average[row][column] <= 0.7){
@@ -384,7 +394,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 
 			// channel_R_S[row][column] = 255 - channel_R_S[row][column];
 		}
-	}	
+	}*/	
 
 	/*//frame
 	for ( ssize_t row = frameHeightHalf; row < height - frameHeightHalf; row++ ){
@@ -501,6 +511,7 @@ int main(int argc,char **argv){
 		comporator = 64, 
 		seg_number = 2, //хитрая переменная: говорит, сколько БИ мы сегментируем. причём одна должна увеличиваться, если в старшем БИ мало сегментов и влезет ещё.. во как.	
 		points_number = 15;
+		// points_number = 250;
 
 	InitializeMagick(*argv);
 	// Construct the image object. Seperating image construction from the
@@ -510,8 +521,8 @@ int main(int argc,char **argv){
 	Image seg_test;
 
 	// string imagepath = "in/7637066.jpg"; //a plane
-	string imagepath = "in/Text0,5_0,95.bmp"; 
-	// string imagepath = "in/lenin100.jpg"; 
+	// string imagepath = "in/Text0,5_0,95.bmp"; 
+	string imagepath = "in/lenin100.bmp";
 	// string imagepath = "in/12 copy.jpg"; 
 
 	bool colourfull = true;
@@ -531,11 +542,11 @@ int main(int argc,char **argv){
 		int square = width * height;
 
 		//немного про параметры окна log(x)*(x^(1/(log(x))));
-		frameWidth = 35;		
+		frameWidth = 21;		
 		// frameWidth = pow(log(width)/log(sqrt(2)), 1.11);		
 		if ((frameWidth&1) == 0) frameWidth++;
 			frameWidthHalf = (frameWidth+1)/2;
-		frameHeight = 35;		
+		frameHeight = 21;		
 		// frameHeight = pow(log(height)/log(sqrt(2)), 1.11);
 		if ((frameHeight&1) == 0) frameHeight++;
 			frameHeightHalf = (frameHeight+1)/2;
@@ -601,14 +612,11 @@ int main(int argc,char **argv){
 		}		
 
 		//SEGMENTATION
-		// void channelSegmentation(unsigned short **channel, unsigned short **channel_S, int width, int height, int bi, int points_number, int frameWidth, int frameHeight)
-		/*channelSegmentation(path, "red channel", channel_R, channel_R_S, width, height, 6, points_number, frameWidth, frameHeight);
-		channelSegmentation(path, "green channel", channel_G, channel_G_S, width, height, 6, points_number, frameWidth, frameHeight);
-		channelSegmentation(path, "blue channel", channel_B, channel_B_S, width, height, 6, points_number, frameWidth, frameHeight);*/
-
-		if (!colourfull)
+		if (colourfull)
 		{
 			for (int i=1; i<2; i++){
+				f<<"Segmenting all channels."<<endl;
+				dump("Segmenting all channels.");
 				// last argument is color_header. is 4 for bright colours, 0 for fade colours... (())
 				channelSegmentation(path, "red channel", channel_R, channel_R_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
 				channelSegmentation(path, "green channel", channel_G, channel_G_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
@@ -625,6 +633,8 @@ int main(int argc,char **argv){
 		else
 		{
 			for (int i=1; i<2; i++){
+				f<<"Segmenting grey."<<endl;
+				dump("Segmenting grey.");				
 				// last argument is color_header. is 4 for bright colours, 0 for fade colours... (())
 				channelSegmentation(path, "grey", channel_Grey, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
 				// channelSegmentation(path, "red channel", channel_R, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
@@ -640,13 +650,6 @@ int main(int argc,char **argv){
 				}
 			}	
 		}
-		/*f<<"Среднее значение вероятности перехода для всего изображения: "<<endl;		
-		f<<"RED pi1 , pi2: "<<endl;		
-		for (int i = 0; i<8; i++) {f<<1-pi1r[i]<<" , "<<1-pi2r[i]<<endl;}
-		f<<"GREEN pi1 , pi2: "<<endl;		
-		for (int i = 0; i<8; i++) {f<<1-pi1g[i]<<" , "<<1-pi2g[i]<<endl;}
-		f<<"BLUE pi1 , pi2: "<<endl;		
-		for (int i = 0; i<8; i++) {f<<1-pi1b[i]<<" , "<<1-pi2b[i]<<endl;}*/
 
 		//Destructing the model of an image
 		for(int i = 0; i < height; ++i) {
