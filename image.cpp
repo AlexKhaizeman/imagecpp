@@ -118,22 +118,29 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		}
 	}	
 
+	f<<"Got out a bite succeesfully. Comporator is " + to_string(comporator)<<endl;
+
 	unsigned short  *biElementsFrame = new unsigned short [frameSquare];
 	// unsigned short  *frameElements = new unsigned short [frameSquare];
 	// unsigned short  *frameSequences = new unsigned short [frameSquare];
+
+	/*for (int j=0; j<frameSquare; j++)
+		biElementsFrame[j] = 0;*/
+
 	int index;
 	double chi;
 
-    for (ssize_t row = 0; row < width; row++)//вероятность pi1 pi2
-    {
-        for (ssize_t column = 0; column < height; column++)
-        {
-            if (row > frameWidthHalf && column > frameHeightHalf && row < (width - frameWidthHalf) && column < (height - frameHeightHalf))
-            {
+
+	for ( ssize_t row = 0; row < height ; row++ )//вероятность pi1 pi2
+	{
+		for ( ssize_t column = 0; column < width ; column++ )
+		{
+            if (column > frameWidthHalf && row > frameHeightHalf && column < (width - frameWidthHalf) && row < (height - frameHeightHalf))
+            {            	
                 index = 0; //make a 1d copy
-                for (ssize_t frameRow = (row - frameWidthHalf); frameRow <= (row + frameWidthHalf); frameRow++)//frame circle
+                for (ssize_t frameRow = (row - frameHeightHalf); frameRow <= (row + frameHeightHalf); frameRow++)//frame circle
                 {
-                    for (ssize_t frameColumn = (column - frameHeightHalf); frameColumn <= (column + frameHeightHalf); frameColumn++)
+                    for (ssize_t frameColumn = (column - frameWidthHalf); frameColumn <= (column + frameWidthHalf); frameColumn++)
                     {                    	
                         biElementsFrame[index] = channel_R[frameRow][frameColumn];
                         index++;
@@ -169,7 +176,6 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
                     pi[row][column] -= (double) frameSequences[index] / (double) frameElements[index];
                 }
                 pi[row][column] += (double) frameSquare;*/
-
 				
 				//good
 				element = 1;
@@ -181,16 +187,15 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
                     	{ element++; }
                     else
                 		{ sequences++; }
-                    element++;                    
+                    element++;
 					pi[row][column] -= (double) sequences / (double) element;
-                }
-                
+                }                
             }
             else
             {
             }
 
-            pi[row][column] = (double) pi[row][column]/ (double) frameSquare;            
+            pi[row][column] = (double) pi[row][column]/ (double) frameSquare;      
         }
     }
 
@@ -511,6 +516,7 @@ int main(int argc,char **argv){
 		comporator = 64, 
 		seg_number = 2, //хитрая переменная: говорит, сколько БИ мы сегментируем. причём одна должна увеличиваться, если в старшем БИ мало сегментов и влезет ещё.. во как.	
 		points_number = 15;
+		// points_number = 150;
 		// points_number = 250;
 
 	InitializeMagick(*argv);
@@ -522,10 +528,11 @@ int main(int argc,char **argv){
 
 	// string imagepath = "in/7637066.jpg"; //a plane
 	// string imagepath = "in/Text0,5_0,95.bmp"; 
-	string imagepath = "in/lenin100.bmp";
+	// string imagepath = "in/lenin copy.bmp";
 	// string imagepath = "in/12 copy.jpg"; 
+	string imagepath = "in/sputnik.jpg"; 
 
-	bool colourfull = true;
+	bool colourfull = false;
 
 	try{
 		// Read a file into image object
@@ -600,14 +607,8 @@ int main(int argc,char **argv){
 				channel_R[row][column] = (unsigned short) 255*pixel_rgb.red();
 				channel_G[row][column] = (unsigned short) 255*pixel_rgb.green();
 				channel_B[row][column] = (unsigned short) 255*pixel_rgb.blue();
-				channel_Grey[row][column] = (channel_R[row][column]+channel_G[row][column]+channel_B[row][column])/3;
-
-				// test
-				/*
-				channel_R_S[row][column] = channel_R[row][column];
-				channel_G_S[row][column] = channel_G[row][column];
-				channel_B_S[row][column] = channel_B[row][column];
-				*/
+					
+				channel_Grey[row][column] = (unsigned short) (channel_R[row][column]+channel_G[row][column]+channel_B[row][column])/3;
 			}
 		}		
 
