@@ -82,6 +82,8 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	//чтобы рисовать гистограммы
 	int histHeight = 650, histWidth = 1400;
 	Image hist_image(Geometry(histWidth, histHeight), Color(MaxRGB, MaxRGB, MaxRGB, 0));
+	histHeight -= 30;
+	histWidth -= 5;
 	hist_image.strokeColor("olive"); // Outline color 
 	hist_image.fillColor("green"); // Fill color 
 	hist_image.strokeWidth(1);
@@ -128,8 +130,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		biElementsFrame[j] = 0;*/
 
 	int index;
-	double chi;
-
+	// double chi;
 
 	for ( ssize_t row = 0; row < height ; row++ )//вероятность pi1 pi2
 	{
@@ -193,12 +194,12 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
             }
             else
             {
+            	// pi[row][column] = (double) frameSquare/2;
             }
 
             pi[row][column] = (double) pi[row][column]/ (double) frameSquare;      
         }
     }
-
 
 	dump("pi1 and pi2 counted...");
 
@@ -274,7 +275,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		for ( ssize_t column = 0; column < width ; column++ ){
 			pi_average[row][column] = Round(pi_average[row][column], accuracy);
 			// f<<to_string(pi_average[row][column])+ " "<<endl;
-/*			if (pi_average[row][column] < 0.5)
+			/*	if (pi_average[row][column] < 0.5)
 				pi_average[row][column] = 0.5;*/
 			if (pi_average[row][column] <= 0){
 				pi_average[row][column] = 0.001;
@@ -329,6 +330,22 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 			(int)(histHeight - histHeight * points[j])));				
 	}
 
+	//add some text
+	histHeight += 15;
+	DrawableFont font = DrawableFont("Times New Roman",
+	                                  NormalStyle,
+	                                  400,
+	                                  SemiCondensedStretch
+	                                 );
+	// drawList.push_back(DrawableFont("-misc-fixed-medium-o-semicondensed—13-*-*-*-c-60-iso8859-1"));
+	drawList.push_back(font);	
+ 	drawList.push_back(DrawableStrokeColor(Color("black")));
+ 	drawList.push_back(DrawableFillColor(Color(0, 0, 0, MaxRGB)));	
+	drawList.push_back(DrawableText(5,histHeight,"0"));
+	drawList.push_back(DrawableText(histWidth,histHeight,"1"));	
+	drawList.push_back(DrawableText(histWidth/2,histHeight,"0.5"));
+	drawList.push_back(DrawableText(10,15,""+to_string((int) max_point)+" px"));
+
 	histHeight += 5;
 	histWidth += 5;
 	hist_image.draw(drawList);
@@ -341,28 +358,42 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	points_number--;
 	minims_counter=1;
 
-	//реализовать минимум не только по двум соседним
+	int vicinity = (int) points_number/20;
+
 	for (int j = 1; j < points_number; j++){
-		if ((points[j]<=points[j-1] & points[j]<points[j+1])||(points[j]<points[j-1] & points[j]<=points[j+1])){
-			if (minims_counter<8){
-				minims[j] = true;
-				minims_counter++;
-			}
-			// dump("There is a minimum in " + to_string(j) + " equal " + to_string(j*accuracy));
-			f<<"There is a minimum in " + to_string(j) + " equal " + to_string(j*accuracy)<<endl;
-		}
-		else
-			minims[j] = false;
+		minims[j] = false;
 	}
 
+	//реализовать минимум не только по двум соседним
+	if (minims_counter<16){
+		for (int j = vicinity; j < points_number - vicinity; j++){
+			minims[j] = true;
+			for (int k = 1; k < vicinity; k++){
+				if (!((points[j]<=points[j-k] & points[j]<points[j+k])||(points[j]<points[j-k] & points[j]<=points[j+k]))){
+					minims[j] = false;
+				}
+			}
+			if (minims[j]){
+				if (minims_counter<16){
+					minims_counter++;
+				}
+				f<<"There is a minimum in " + to_string(j) + " equal " + to_string(j*accuracy)<<endl;
+			}
+		}
+	}
+
+	//normal colours 255/counter
+	/*unsigned short  *Colours = new unsigned short [minims_counter];
+
+	for (int ii = 1; ii <= minims_counter; ii++){
+		Colours[ii] = (unsigned short) (255/ii);
+		f<<"Colour " + to_string(ii) + " is " + to_string(Colours[ii])<<endl;
+	}*/
 
 	//@TODO: реализовать такую штуку: типа если сегментов получилось мало - то и занимать мало разрядов...
 	/*if (comporator == 128)
 		color_header = 4;
 	if (comporator == 64)
-		color_header = 4; //0*/
-
-	/*if (comporator == 32)
 		color_header = 0;*/
 
 	//segmentation
@@ -379,6 +410,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 								// dump("point min is in " + to_string(j) + " equal " + to_string(j*accuracy) + " and in " + to_string(jj) + " equal " + to_string(jj*accuracy) + " pi is " + to_string(pi_average[row][column]));
 								if (pi_average[row][column] <= jj*accuracy){
 									channel_R_S[row][column] += (minims_flag<<color_header);
+									// channel_R_S[row][column] = Colours[j];
 								}
 							}
 						}
@@ -390,16 +422,16 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	points_number++;
 	dump("segmented ... ");
 
-	/*for ( ssize_t row = 0; row < height ; row++ ){
-		for ( ssize_t column = 0; column < width ; column++ ){
+	// for ( ssize_t row = 0; row < height ; row++ ){
+	// 	for ( ssize_t column = 0; column < width ; column++ ){
 			
-			if (pi_average[row][column] <= 0.7){
-				channel_R_S[row][column] = 255;
-			}
+	// 		if (pi_average[row][column] <= 0.7){
+	// 			channel_R_S[row][column] = 255;
+	// 		}
 
-			// channel_R_S[row][column] = 255 - channel_R_S[row][column];
-		}
-	}*/	
+	// 		channel_R_S[row][column] = 255 - channel_R_S[row][column];
+	// 	}
+	// }	
 
 	/*//frame
 	for ( ssize_t row = frameHeightHalf; row < height - frameHeightHalf; row++ ){
@@ -515,9 +547,9 @@ int main(int argc,char **argv){
 		frameSquare = 0,
 		comporator = 64, 
 		seg_number = 2, //хитрая переменная: говорит, сколько БИ мы сегментируем. причём одна должна увеличиваться, если в старшем БИ мало сегментов и влезет ещё.. во как.	
-		points_number = 15;
-		// points_number = 150;
-		// points_number = 250;
+		// points_number = 15;
+		// points_number = 50;
+		points_number = 250;
 
 	InitializeMagick(*argv);
 	// Construct the image object. Seperating image construction from the
@@ -528,9 +560,9 @@ int main(int argc,char **argv){
 
 	// string imagepath = "in/7637066.jpg"; //a plane
 	// string imagepath = "in/Text0,5_0,95.bmp"; 
-	// string imagepath = "in/lenin copy.bmp";
+	string imagepath = "in/lenin copy.bmp";
 	// string imagepath = "in/12 copy.jpg"; 
-	string imagepath = "in/sputnik.jpg"; 
+	// string imagepath = "in/sputnik.jpg"; 
 
 	bool colourfull = false;
 
@@ -549,12 +581,14 @@ int main(int argc,char **argv){
 		int square = width * height;
 
 		//немного про параметры окна log(x)*(x^(1/(log(x))));
-		frameWidth = 21;		
-		// frameWidth = pow(log(width)/log(sqrt(2)), 1.11);		
+		// frameWidth = 21;		
+		frameWidth = pow(log(width)/log(sqrt(2)), 1.11);		
+		// frameWidth = log(width)/log(sqrt(2));		
 		if ((frameWidth&1) == 0) frameWidth++;
 			frameWidthHalf = (frameWidth+1)/2;
-		frameHeight = 21;		
-		// frameHeight = pow(log(height)/log(sqrt(2)), 1.11);
+		// frameHeight = 21;		
+		frameHeight = pow(log(height)/log(sqrt(2)), 1.11);
+		// frameHeight = log(height)/log(sqrt(2));
 		if ((frameHeight&1) == 0) frameHeight++;
 			frameHeightHalf = (frameHeight+1)/2;
 		frameSquare = frameWidth * frameHeight;
@@ -633,7 +667,10 @@ int main(int argc,char **argv){
 		}
 		else
 		{
-			for (int i=1; i<2; i++){
+			f<<"Segmenting grey."<<endl;
+			dump("Segmenting grey.");				
+			channelSegmentation(path, "grey", channel_Grey, channel_Grey_S, width, height, 6, points_number, frameWidth, frameHeight, 4);
+			/*for (int i=2; i<3; i++){
 				f<<"Segmenting grey."<<endl;
 				dump("Segmenting grey.");				
 				// last argument is color_header. is 4 for bright colours, 0 for fade colours... (())
@@ -642,7 +679,7 @@ int main(int argc,char **argv){
 				// channelSegmentation(path, "green channel", channel_G, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
 				// channelSegmentation(path, "blue channel", channel_B, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);			
 
-			}
+			}*/
 			//рисуем итоговую карту
 			for ( ssize_t row = 0; row < height ; row++ ){
 				for ( ssize_t column = 0; column < width ; column++ ){
@@ -681,7 +718,6 @@ int main(int argc,char **argv){
 		f.close();
 
 		dump("Done"); 		
-
 	}
 	catch( Exception &error_ ){       
 		cout << "Caught exception: " << error_.what() << endl;
