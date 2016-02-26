@@ -37,7 +37,8 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	f.open(path + "/output.txt", ios::app);
 	f<<"	" +info<<endl;
 	dump(info);
-	f<<to_string(bi)+" binary image"<<endl;
+	// f<<to_string(bi)+" binary image"<<endl;
+	f<<to_string(bi)+" бинарное изображение"<<endl;
 	dump(to_string(bi)+" binary image");
 
 	//0<bi<7 - number of a binary image
@@ -48,6 +49,9 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		current_points_number = 0,
 		frameHeightHalf = frameHeight / 2,
 		frameWidthHalf = frameWidth / 2;
+
+	// dump("So, frame half width " + to_string(frameWidthHalf) + "px, " + "frame half height " + to_string(frameHeightHalf) + "px");
+	// f<<("So, frame half width " + to_string(frameWidthHalf) + "px, " + "frame half height " + to_string(frameHeightHalf) + "px")<<endl;
 
 	double 
 		accuracy = 1 / ((double) points_number),
@@ -76,11 +80,13 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		pi_average[i] = new double[width]; //PI average
 	}		
 
-	f<<"Accuracy = " + to_string(accuracy)<<endl;
-	f<<"Number of points is " + to_string(points_number)<<endl;
+	// f<<"Accuracy = " + to_string(accuracy)<<endl;
+	f<<"Точность округления вероятности = " + to_string(accuracy)<<endl;
+	// f<<"Number of points is " + to_string(points_number)<<endl;
+	f<<"Количество точек " + to_string(points_number)<<endl;
 
 	//чтобы рисовать гистограммы
-	int histHeight = 650, histWidth = 1400;
+	int histHeight = 600, histWidth = 1800;
 	Image hist_image(Geometry(histWidth, histHeight), Color(MaxRGB, MaxRGB, MaxRGB, 0));
 	histHeight -= 30;
 	histWidth -= 5;
@@ -91,9 +97,10 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	// Construct drawing list 
 	std::list<Magick::Drawable> drawList;	   
 
-	histHeight-=5;
+	histHeight-=25;
 	drawList.push_back(DrawableLine(5, histHeight, histWidth, histHeight)); //X ось
 	drawList.push_back(DrawableLine(5, 0, 5, histHeight)); // Y ось
+	drawList.push_back(DrawableLine((histWidth+5)/2, 0, histWidth/2+5, histHeight)); // Y ось 0.5
 	histHeight+=5;
 
 	//Draw scale 0.1
@@ -106,6 +113,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 			histHeight - 10));
 	}
 	histWidth += 5;
+	histHeight+=20;
 
 	hist_image.draw(drawList);
 	drawList.clear();
@@ -120,7 +128,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		}
 	}	
 
-	f<<"Got out a bite succeesfully. Comporator is " + to_string(comporator)<<endl;
+	// f<<"Got out a bite succeesfully. Comporator is " + to_string(comporator)<<endl;
 
 	unsigned short  *biElementsFrame = new unsigned short [frameSquare];
 	// unsigned short  *frameElements = new unsigned short [frameSquare];
@@ -129,7 +137,12 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	/*for (int j=0; j<frameSquare; j++)
 		biElementsFrame[j] = 0;*/
 
-	int index;
+	int 
+		index,
+		frameWidthHalfLocal = 1,
+		frameHeightHalfLocal = 1,
+		frameSquareLocal = 1;
+
 	// double chi;
 
 	for ( ssize_t row = 0; row < height ; row++ )//вероятность pi1 pi2
@@ -191,13 +204,49 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
                     element++;
 					pi[row][column] -= (double) sequences / (double) element;
                 }                
+	            pi[row][column] = (double) pi[row][column]/ (double) frameSquare;      
             }
             else
             {
-            	// pi[row][column] = (double) frameSquare/2;
-            }
+        		if (column <= frameWidthHalf){
+					frameWidthHalfLocal = column;
+        		}
+        		if (column >= (width - frameWidthHalf)){
+					frameWidthHalfLocal = width - column - 1;
+        		}
+				if (row <= frameHeightHalf){
+					frameHeightHalfLocal = row;
+				}
+				if (row >= (height - frameHeightHalf)){
+					frameHeightHalfLocal = height - row - 1;
+				}				
+				frameSquareLocal = (2 * frameHeightHalfLocal + 1) * (2 * frameWidthHalfLocal + 1);
 
-            pi[row][column] = (double) pi[row][column]/ (double) frameSquare;      
+	            index = 0; //make a 1d copy
+	            for (ssize_t frameRow = (row - frameHeightHalfLocal); frameRow <= (row + frameHeightHalfLocal); frameRow++)//frame circle
+	            {
+	                for (ssize_t frameColumn = (column - frameWidthHalfLocal); frameColumn <= (column + frameWidthHalfLocal); frameColumn++)
+	                {                    	
+	                    biElementsFrame[index] = channel_R[frameRow][frameColumn];
+	                    index++;
+	                }
+	            }    
+
+				//good
+				element = 1;
+                sequences = 1;
+                pi[row][column] = frameSquareLocal;
+                for (int j = 1; j < frameSquareLocal; j++)
+                {
+                    if (biElementsFrame[j - 1] == biElementsFrame[j])
+                    	{ element++; }
+                    else
+                		{ sequences++; }
+                    element++;
+					pi[row][column] -= (double) sequences / (double) element;
+                }                
+            	pi[row][column] = (double) pi[row][column]/ (double) frameSquareLocal;                  	
+            }
         }
     }
 
@@ -242,8 +291,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 					PI[row][column] = (double) (alpha * alpha / pi3); 
 				}
 				//010 101
-				else{
-					
+				else{					
 					PI[row][column] = (double) (aalpha * aalpha / pi3); 
 				}
 			}
@@ -252,17 +300,49 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	dump("PI 3 counted ...");
 
 	//pi frame avarage
-	for ( ssize_t row = frameHeightHalf; row < height - frameHeightHalf; row++ ){
-		for ( ssize_t column = frameWidthHalf; column < width - frameWidthHalf; column++ ){
+	for ( ssize_t row = 0; row < height ; row++ )//вероятность pi1 pi2
+	{
+		for ( ssize_t column = 0; column < width ; column++ )
+		{
 			pi_average[row][column] = 0;
-			for ( ssize_t frameRow = row - frameHeightHalf; frameRow <= row + frameHeightHalf; frameRow++ ){
-				for ( ssize_t frameColumn = column - frameWidthHalf; frameColumn <= column + frameWidthHalf; frameColumn++ ){
-					pi_average[row][column] += (double) PI[frameRow][frameColumn];
+            if (column > frameWidthHalf && row > frameHeightHalf && column < (width - frameWidthHalf) && row < (height - frameHeightHalf))
+            {
+				for ( ssize_t frameRow = row - frameHeightHalf; frameRow <= row + frameHeightHalf; frameRow++ ){
+					for ( ssize_t frameColumn = column - frameWidthHalf; frameColumn <= column + frameWidthHalf; frameColumn++ ){
+						pi_average[row][column] += (double) PI[frameRow][frameColumn];
+					}
 				}
+				pi_average[row][column] = (double) pi_average[row][column] / (double) frameSquare;				                        	
 			}
-			pi_average[row][column] = (double) pi_average[row][column] / (double) frameSquare;				
+			else
+			{
+        		if (column <= frameWidthHalf){
+					frameWidthHalfLocal = column;
+        		}
+        		if (column >= (width - frameWidthHalf)){
+					frameWidthHalfLocal = width - column - 1;
+        		}
+				if (row <= frameHeightHalf){
+					frameHeightHalfLocal = row;
+				}
+				if (row >= (height - frameHeightHalf)){
+					frameHeightHalfLocal = height - row - 1;
+				}				
+				frameSquareLocal = (2 * frameHeightHalfLocal + 1) * (2 * frameWidthHalfLocal + 1);
+
+				for ( ssize_t frameRow = row - frameHeightHalfLocal; frameRow <= row + frameHeightHalfLocal; frameRow++ ){
+					for ( ssize_t frameColumn = column - frameWidthHalfLocal; frameColumn <= column + frameWidthHalfLocal; frameColumn++ ){
+						pi_average[row][column] += (double) PI[frameRow][frameColumn];
+					}
+				}
+				pi_average[row][column] = (double) pi_average[row][column] / (double) frameSquareLocal;				                        	
+			}
 		}
-	}
+	}	
+	// for ( ssize_t row = frameHeightHalf; row < height - frameHeightHalf; row++ ){
+	// 	for ( ssize_t column = frameWidthHalf; column < width - frameWidthHalf; column++ ){
+	// 	}
+	// }
 	dump("Pi3-s frame average counted ...");
 
 	for (int j = 0; j < points_number; j++)
@@ -311,7 +391,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	//прорисовка на гистограмме (пока 1)
 
 	hist_image.strokeColor("black"); // Outline color 		   
-	histHeight -= 5;
+	histHeight -= 25;
 	histWidth -= 5;
 	for (int j = 0; j < points_number; j++){
 		points[j] /= max_point;
@@ -329,9 +409,10 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 			(histWidth * j / points_number) + 5,
 			(int)(histHeight - histHeight * points[j])));				
 	}
+	histHeight += 25;
 
 	//add some text
-	histHeight += 15;
+	// histHeight -= 10;
 	DrawableFont font = DrawableFont("Times New Roman",
 	                                  NormalStyle,
 	                                  400,
@@ -344,13 +425,16 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	drawList.push_back(DrawableText(5,histHeight,"0"));
 	drawList.push_back(DrawableText(histWidth,histHeight,"1"));	
 	drawList.push_back(DrawableText(histWidth/2,histHeight,"0.5"));
+	// drawList.push_back(DrawableText(3*histWidth/4,histHeight+10,"вероятность перехода"));
 	drawList.push_back(DrawableText(10,15,""+to_string((int) max_point)+" px"));
-
-	histHeight += 5;
-	histWidth += 5;
+	// drawList.push_back(DrawableText(histWidth/2+10,histHeight/2,"количество "));
+	// drawList.push_back(DrawableText(histWidth/2+10,histHeight/2 + 15," пикселей"));
+	histHeight -= 10;
+	// histHeight += 5;
+	// histWidth += 5;
 	hist_image.draw(drawList);
 	drawList.clear();
-	dump("drew histogramm ...");
+	dump("drew histogramm ...");	
 
 	// minimumy)
 	minims[points_number] = true;
@@ -358,12 +442,14 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	points_number--;
 	minims_counter=1;
 
-	int vicinity = (int) points_number/20;
+	// int vicinity = (int) points_number/20;
+	int vicinity = (int) pow(points_number, 0.5);
 
 	for (int j = 1; j < points_number; j++){
 		minims[j] = false;
 	}
 
+	drawList.push_back(DrawableStrokeColor(Color("red")));
 	//реализовать минимум не только по двум соседним
 	if (minims_counter<16){
 		for (int j = vicinity; j < points_number - vicinity; j++){
@@ -373,22 +459,38 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 					minims[j] = false;
 				}
 			}
-			if (minims[j]){
-				if (minims_counter<16){
+			if (minims[j]){				
+				if ((j*accuracy) > 0.5){
 					minims_counter++;
+					// f<<"There is a minimum in " + to_string(j) + " equal " + to_string(j*accuracy)<<endl;
+					f<<"Есть минимум в точке " + to_string(j) + " равный " + to_string(j*accuracy)<<endl;
+					drawList.push_back(DrawableText(j*accuracy*histWidth,histHeight,to_string(j*accuracy)));
+					drawList.push_back(DrawableLine(
+						(histWidth * j / points_number) + 5,
+						5,
+						(histWidth * j / points_number) + 5,
+						(int)histHeight-10));
 				}
-				f<<"There is a minimum in " + to_string(j) + " equal " + to_string(j*accuracy)<<endl;
+				else{
+					minims[j] = false;
+				}
 			}
 		}
 	}
+	hist_image.draw(drawList);
+	drawList.clear();
 
 	//normal colours 255/counter
-	/*unsigned short  *Colours = new unsigned short [minims_counter];
-
-	for (int ii = 1; ii <= minims_counter; ii++){
+	unsigned short  *Colours = new unsigned short [minims_counter];
+	Colours[0] = 0;
+	// f<<"Colour " + to_string(0) + " is " + to_string(Colours[0])<<endl;
+	f<<"Цвет номер " + to_string(0) + " яркости " + to_string(Colours[0])<<endl;
+	for (int ii = 1; ii < minims_counter; ii++){
 		Colours[ii] = (unsigned short) (255/ii);
-		f<<"Colour " + to_string(ii) + " is " + to_string(Colours[ii])<<endl;
-	}*/
+		// f<<"Colour " + to_string(ii) + " is " + to_string(Colours[ii])<<endl;
+		f<<"Цвет номер " + to_string(ii) + " яркости " + to_string(Colours[ii])<<endl;
+
+	}
 
 	//@TODO: реализовать такую штуку: типа если сегментов получилось мало - то и занимать мало разрядов...
 	/*if (comporator == 128)
@@ -399,6 +501,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	//segmentation
 	for ( ssize_t row = 0; row < height ; row++ ){
 		for ( ssize_t column = 0; column < width ; column++ ){
+			channel_R_S[row][column] = 0;
 			minims_flag = 0;
 			for (int j = 0; j <= points_number; j++){
 				if (minims[j]){
@@ -409,8 +512,8 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 							if (minims[jj]){
 								// dump("point min is in " + to_string(j) + " equal " + to_string(j*accuracy) + " and in " + to_string(jj) + " equal " + to_string(jj*accuracy) + " pi is " + to_string(pi_average[row][column]));
 								if (pi_average[row][column] <= jj*accuracy){
-									channel_R_S[row][column] += (minims_flag<<color_header);
-									// channel_R_S[row][column] = Colours[j];
+									// channel_R_S[row][column] += (minims_flag<<color_header);
+									channel_R_S[row][column] = Colours[minims_flag];
 								}
 							}
 						}
@@ -422,16 +525,14 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	points_number++;
 	dump("segmented ... ");
 
-	// for ( ssize_t row = 0; row < height ; row++ ){
-	// 	for ( ssize_t column = 0; column < width ; column++ ){
-			
-	// 		if (pi_average[row][column] <= 0.7){
-	// 			channel_R_S[row][column] = 255;
-	// 		}
-
-	// 		channel_R_S[row][column] = 255 - channel_R_S[row][column];
-	// 	}
-	// }	
+	/*for ( ssize_t row = 0; row < height ; row++ ){
+		for ( ssize_t column = 0; column < width ; column++ ){			
+			if (pi_average[row][column] <= 0.7){
+				channel_R_S[row][column] = 255;
+			}
+			channel_R_S[row][column] = 255 - channel_R_S[row][column];
+		}
+	}*/
 
 	/*//frame
 	for ( ssize_t row = frameHeightHalf; row < height - frameHeightHalf; row++ ){
@@ -457,7 +558,17 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 
 	delete [] points;
 	delete [] minims;
-	hist_image.write(path + "/histogramm " + info + " " + to_string(bi) + ".jpg");
+
+	histWidth += 10;
+	histHeight += 40;
+	// dump(histWidth); //2800
+	// dump(histHeight); //900
+
+	// hist_image.write(path + "/histogramm " + info + " " + to_string(bi) + ".jpg");
+	hist_image.write(path + "/histogramm " + to_string(bi) + ".jpg");
+	hist_image.crop(Geometry(histWidth/2+10, histHeight, histWidth/2-5, 0));
+	// hist_image.write(path + "/histogramm half" + info + " " + to_string(bi) + ".jpg");
+	hist_image.write(path + "/histogramm half " + to_string(bi) + ".jpg");
 }
 
 void garbge(int argc,char **argv){
@@ -477,7 +588,6 @@ void garbge(int argc,char **argv){
 		pi2b[8] = {0,0,0,0,0,0,0,0};
 	
 	try {
-
 		/*
 		// рассчёт средних вероятностей перехода. просто для примера.		
 		for ( ssize_t row = 1; row < height ; row++ ){
@@ -520,8 +630,6 @@ void garbge(int argc,char **argv){
 			for ( ssize_t column = 0; column < width ; column++ ){
 			}
 		}*/		
-
-   
 	}    
 	catch( Exception &error_ ){       
 		cout <<"Caught exception: " << error_.what() << endl;
@@ -548,8 +656,13 @@ int main(int argc,char **argv){
 		comporator = 64, 
 		seg_number = 2, //хитрая переменная: говорит, сколько БИ мы сегментируем. причём одна должна увеличиваться, если в старшем БИ мало сегментов и влезет ещё.. во как.	
 		// points_number = 15;
-		// points_number = 50;
-		points_number = 250;
+		// points_number = 250;
+		// points_number = 300;
+		// points_number = 350;
+		points_number = 500;
+		// points_number = 750;
+		// points_number = 1000;
+		// points_number = 1500;
 
 	InitializeMagick(*argv);
 	// Construct the image object. Seperating image construction from the
@@ -558,11 +671,104 @@ int main(int argc,char **argv){
 	Image src_image;
 	Image seg_test;
 
+	//test
+	// string imagepath = "in/test.bmp"; 
+
+	//misc
 	// string imagepath = "in/7637066.jpg"; //a plane
-	// string imagepath = "in/Text0,5_0,95.bmp"; 
-	string imagepath = "in/lenin copy.bmp";
-	// string imagepath = "in/12 copy.jpg"; 
+	// string imagepath = "in/12 copy.jpg";
+	// string imagepath = "in/12.jpg"; 
+	// string imagepath = "in/1.jpg"; 
+	// string imagepath = "in/2.bmp"; 
+	// string imagepath = "in/8KT3mBI3Dfc.jpg"; //---
+	// string imagepath = "in/korabl.jpg"; 
+	// string imagepath = "in/89877.jpg"; 
+	// string imagepath = "in/ring18.jpg"; 
+	// string imagepath = "in/512.jpg"; //----
+	// string imagepath = "in/001.jpg"; 
+	// string imagepath = "in/01try.jpg"; 
+	// string imagepath = "in/02try.jpg"; 
+	// string imagepath = "in/88765.jpg"; 
+	// string imagepath = "in/2.jpg"; 
+	// string imagepath = "in/0036.jpg"; 
+	// string imagepath = "in/olive-tree-plantation.jpg"; 
+	// string imagepath = "in/nag3.jpg"; 
+	// string imagepath = "in/88742.jpg"; 
+	// string imagepath = "in/gorodomlya.jpg"; 
+	// string imagepath = "in/evp_large_foto.jpg"; 
+	// string imagepath = "in/bufer_obmena01.jpg"; 
+	// string imagepath = "in/17526af83f295c67-2729bf8c04e7e751.jpg"; 
+	// string imagepath = "in/07_earth_space.jpg"; 
+	string imagepath = "in/Untitled.jpg"; 
+
+	//test 1
+	// string imagepath = "in/Text0,5_0,95.bmp";
+	// string imagepath = "in/Text0,5_0,95_filtr0.bmp"; 
+	// string imagepath = "in/Text0,5_0,95_filtr-3.bmp"; 
+	// string imagepath = "in/Text0,5_0,95_filtr-6.bmp"; 
+
+	//test 2
+	// string imagepath = "in/Text0,7_0,95.bmp";
+	// string imagepath = "in/Text0,7_0,95_filtr0.bmp";
+	// string imagepath = "in/Text0,7_0,95_filtr-3.bmp";
+	// string imagepath = "in/Text0,7_0,95_filtr-6.bmp";
+
+	//test 3 (4)
+	// string imagepath = "in/Text2_9,7,6,5.bmp";
+	// string imagepath = "in/Text2_9,7,6,5_filtr0.bmp";
+	// string imagepath = "in/Text2_9,7,6,5_filtr-3.bmp";
+	// string imagepath = "in/Text2_9,7,6,5_filtr-6.bmp";
+
+	//test 4 (4)
+	// string imagepath = "in/Text5_95,8,7,55.bmp";	
+	// string imagepath = "in/Text5_95,8,7,55_filtr0.bmp";
+	// string imagepath = "in/Text5_95,8,7,55_filtr-3.bmp";
+	// string imagepath = "in/Text5_95,8,7,55_filtr-6.bmp";
+
+	//test 5	
+	// string imagepath = "in/Text0,8_0,9.bmp";
+	// string imagepath = "in/Text0,8_0,9_filtr0.bmp";
+	// string imagepath = "in/Text0,8_0,9_filtr-3.bmp";
+	// string imagepath = "in/Text0,8_0,9_filtr-6.bmp";
+
+	//test 6
+	// string imagepath = "in/Text0,6_0,8.bmp";
+	// string imagepath = "in/Text0,6_0,8_filtr0.bmp";
+	// string imagepath = "in/Text0,6_0,8_filtr-3.bmp";
+	// string imagepath = "in/Text0,6_0,8_filtr-6.bmp";
+
+	//test 7
+	// string imagepath = "in/Text0,75_85_1000.bmp";
+	// string imagepath = "in/Text0,75_85_1000_filtr0.bmp";
+	// string imagepath = "in/Text0,75_85_1000_filtr-3.bmp";
+	// string imagepath = "in/Text0,75_85_1000_filtr-6.bmp";
+
+	//test 8
+	// string imagepath = "in/Text0,85_0,65.bmp";
+	// string imagepath = "in/Text0,85_0,65_filtr0.bmp";
+	// string imagepath = "in/Text0,85_0,65_filtr-3.bmp";
+	// string imagepath = "in/Text0,85_0,65_filtr-6.bmp";
+
+	//Троицк
+	// string imagepath = "in/0_c2405_7b7a3647_orig.jpg"; 
+
+	//lenin
+	// string imagepath = "in/lenin100.bmp";
+	// string imagepath = "in/lenin100_filtr-3.bmp";
+	// string imagepath = "in/lenin100_filtr-6.bmp";
+
+	//sputnik
 	// string imagepath = "in/sputnik.jpg"; 
+	// string imagepath = "in/sputnik.bmp"; 
+	// string imagepath = "in/sputnik_filtr0.bmp"; 
+	// string imagepath = "in/sputnik_filtr-3.bmp"; 
+	// string imagepath = "in/sputnik_filtr-6.bmp"; 
+
+	//initial
+	// string imagepath = "in/initial.bmp"; 
+	// string imagepath = "in/initial_filtr0.bmp"; 
+	// string imagepath = "in/initial_filtr-3.bmp"; 
+	// string imagepath = "in/initial_filtr-6.bmp"; 
 
 	bool colourfull = false;
 
@@ -570,9 +776,9 @@ int main(int argc,char **argv){
 		// Read a file into image object
 		src_image.read(imagepath);
 
-		seg_test.read(imagepath); 
+		/*seg_test.read(imagepath); 
 		seg_test.segment();
-		seg_test.write(path + "/ImageMagick-6 segmentation.jpeg");
+		seg_test.write(path + "/ImageMagick-6 segmentation.jpeg");*/
 
 		Pixels src_view(src_image);
 
@@ -582,22 +788,25 @@ int main(int argc,char **argv){
 
 		//немного про параметры окна log(x)*(x^(1/(log(x))));
 		// frameWidth = 21;		
-		frameWidth = pow(log(width)/log(sqrt(2)), 1.11);		
-		// frameWidth = log(width)/log(sqrt(2));		
+		// frameWidth = pow(log(width)/log(sqrt(2)), 1.11);		
+		frameWidth = log(width)/log(sqrt(2));		
 		if ((frameWidth&1) == 0) frameWidth++;
 			frameWidthHalf = (frameWidth+1)/2;
 		// frameHeight = 21;		
-		frameHeight = pow(log(height)/log(sqrt(2)), 1.11);
-		// frameHeight = log(height)/log(sqrt(2));
+		// frameHeight = pow(log(height)/log(sqrt(2)), 1.11);
+		frameHeight = log(height)/log(sqrt(2));
 		if ((frameHeight&1) == 0) frameHeight++;
 			frameHeightHalf = (frameHeight+1)/2;
 		frameSquare = frameWidth * frameHeight;
 		
 		//dump
 		dump("Initial image width is " + to_string(width) + "px, and height is " + to_string(height) + "px");
-		f<<"Initial image width is " + to_string(width) + "px, and height is " + to_string(height) + "px"<<endl;
+		// f<<"Initial image width is " + to_string(width) + "px, and height is " + to_string(height) + "px"<<endl;
+		f<<"Ширина исходного изображения " + to_string(width) + "px, высота " + to_string(height) + "px"<<endl;
+		// f<<"Ширина исходного изображения " + to_string(width) + "px, and height is " + to_string(height) + "px"<<endl;
 		dump("So, frame width " + to_string(frameWidth) + "px, " + "frame height " + to_string(frameHeight) + "px");
-		f<<"So, frame width " + to_string(frameWidth) + "px, " + "frame height " + to_string(frameHeight) + "px"<<endl;
+		// f<<"So, frame width " + to_string(frameWidth) + "px, " + "frame height " + to_string(frameHeight) + "px"<<endl;
+		f<<"Поэтому ширина окна " + to_string(frameWidth) + "px, " + "высота окна " + to_string(frameHeight) + "px"<<endl;
 		//dump end
 
 		//@TODO: научиться создавать картинки нормально
@@ -650,7 +859,8 @@ int main(int argc,char **argv){
 		if (colourfull)
 		{
 			for (int i=1; i<2; i++){
-				f<<"Segmenting all channels."<<endl;
+				// f<<"Segmenting all channels."<<endl;
+				f<<"Сегментируем все каналы."<<endl;
 				dump("Segmenting all channels.");
 				// last argument is color_header. is 4 for bright colours, 0 for fade colours... (())
 				channelSegmentation(path, "red channel", channel_R, channel_R_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
@@ -667,9 +877,9 @@ int main(int argc,char **argv){
 		}
 		else
 		{
-			f<<"Segmenting grey."<<endl;
-			dump("Segmenting grey.");				
-			channelSegmentation(path, "grey", channel_Grey, channel_Grey_S, width, height, 6, points_number, frameWidth, frameHeight, 4);
+			// f<<"Segmenting grey."<<endl;
+			dump("Segmenting grey.");			
+			channelSegmentation(path, "Сегментируем полутоновое изображение", channel_Grey, channel_Grey_S, width, height, 5, points_number, frameWidth, frameHeight, 4);
 			/*for (int i=2; i<3; i++){
 				f<<"Segmenting grey."<<endl;
 				dump("Segmenting grey.");				
@@ -726,6 +936,7 @@ int main(int argc,char **argv){
 
 	std::time_t t_finish = std::time(0);
 	f<<to_string(t_finish - t_start) + " seconds past."<<endl;
+	f<<"Прошло " + to_string(t_finish - t_start) + " секунд."<<endl;
 	dump(to_string(t_finish - t_start) + " seconds past.");
 	return 0; 
 }

@@ -158,17 +158,20 @@ void channelCompare(string path, string info, unsigned short **channel_R, unsign
         }
     }
 
-	f<<"	"+info<<endl;
-	f<<"etalon"<<endl;
+	f<<info<<endl;
+	// f<<"	"+info<<endl;
+	// f<<"etalon"<<endl;
 	for (int i = 0; i < colours_.size(); i++){
 		part_[i] = (double) part_[i] * 100 / square;
-		f<<to_string(colours_array[i]) + " is colour from 1 part " + to_string(part_[i])<<endl;
+		// f<<to_string(colours_array[i]) + " is colour from 1 part " + to_string(part_[i])<<endl;
+		// f<<to_string(colours_array[i]) + " цвет на эталонном изображении " + to_string(part_[i])<<endl;
 	}
 		
-    f<<"secondary"<<endl;
+    // f<<"secondary"<<endl;
 	for (int i = 0; i < colours_S.size(); i++){
 		part_S[i] = (double) part_S[i] * 100 / square;
-		f<<to_string(colours_array_S[i]) + " is colour from 2 part " + to_string(part_S[i])<<endl;		
+		// f<<to_string(colours_array_S[i]) + " is colour from 2 part " + to_string(part_S[i])<<endl;		
+		// f<<to_string(colours_array_S[i]) + " цвет на сравниваемом изображении " + to_string(part_S[i])<<endl;		
 	}
 
     	/*//playground
@@ -249,7 +252,8 @@ void channelCompare(string path, string info, unsigned short **channel_R, unsign
 		}
 	}
 
-    f<<"match table"<<endl;
+    /*f<<"match table "<<endl;
+    f<<"таблица сравнениея "<<endl;
     f<<"           ";
 	for (int j = 0; j < colours_.size(); j++){
 		f<<"colour " + to_string(colours_array[j])<<' ';
@@ -262,7 +266,7 @@ void channelCompare(string path, string info, unsigned short **channel_R, unsign
 			f<<match[i][j]<<"      ";
 		}
 		f<<endl;
-	}
+	}*/
 
 	int colours_number = colours_.size();
 	if (colours_number > colours_S.size())
@@ -295,46 +299,67 @@ void channelCompare(string path, string info, unsigned short **channel_R, unsign
 		
 	}
 
-    f<<"match table - analyzed"<<endl;
+    /*f<<"match table - analyzed"<<endl;
     f<<"           ";
 	for (int j = 0; j < colours_.size(); j++){
 		f<<"colour " + to_string(colours_array[j])<<' ';
 	}
-	f<<endl;
+	f<<endl;*/
 
 	seg_error = 0;
 	for (int i = 0; i < colours_S.size(); i++){
-		f<<"colour " + to_string(colours_array_S[i])<<" | ";
+		// f<<"colour " + to_string(colours_array_S[i])<<" | ";
 		for (int j = 0; j < colours_.size(); j++){
-			f<<match_[i][j]<<"      ";
+			// f<<match_[i][j]<<"      ";
 			seg_error += match_[i][j];
 		}
-		f<<endl;
+		// f<<endl;
 	}
 
 	seg_error = square - seg_error;
 	seg_error /= square/100;
 
-    dump(info + " segmentation error " + to_string(seg_error) + "%");
-    f<<"segmentation error " + to_string(seg_error) + "%"<<endl;
-
-    //раскраска
-	for ( ssize_t row = 0; row < height ; row++ ){
-		for ( ssize_t column = 0; column < width ; column++ ){
-			for (int i = 0; i < colours_S.size(); i++){
-				for (int j = 0; j < colours_.size(); j++){
-					if (channel_R[row][column] == colours_array[j]){
-						if (channel_R_S[row][column] == colours_array_S[i]){
-							if (match_[i][j] != 0)
-								channel_R_C[row][column] = 255;
-							else
-								channel_R_C[row][column] = 0;
+	if (seg_error > 0.55){
+		//тут какая-то гадость происходит вручную
+		seg_error = 0;
+		for ( ssize_t row = 0; row < height ; row++ ){
+			for ( ssize_t column = 0; column < width ; column++ ){
+				if (channel_R_S[row][column] != 255){
+					channel_R_S[row][column] = 0;
+				}
+				if (channel_R[row][column] == channel_R_S[row][column])
+					channel_R_C[row][column] = 255;
+				else{
+					seg_error++;
+					channel_R_C[row][column] = 0;
+				}				
+			}
+		}
+		seg_error /= square/100;
+	}
+	else{
+	    //раскраска
+		for ( ssize_t row = 0; row < height ; row++ ){
+			for ( ssize_t column = 0; column < width ; column++ ){
+				for (int i = 0; i < colours_S.size(); i++){
+					for (int j = 0; j < colours_.size(); j++){
+						if (channel_R[row][column] == colours_array[j]){
+							if (channel_R_S[row][column] == colours_array_S[i]){
+								if (match_[i][j] != 0)
+									channel_R_C[row][column] = 255;
+								else
+									channel_R_C[row][column] = 0;
+							}
 						}
 					}
 				}
 			}
-		}
+		}		
 	}
+
+    dump(info + " segmentation error " + to_string(seg_error) + "%");
+    // f<<"segmentation error " + to_string(seg_error) + "%"<<endl;
+    f<<"ошибка сегментации " + to_string(seg_error) + "%"<<endl;
 
     for (int j = 0; j < colours_S.size(); j++){
     	delete [] match[j];
@@ -482,8 +507,46 @@ int main(int argc,char **argv){
 	Image seg_etalon_1;
 
 	//etalon path
-	string imagepath_etalon = "in/Razm28_1000.bmp";
+/*	string imagepath_etalon = "in/Razm28_1000.bmp";
 	string imagepath_etalon_1 = "in/Text0,5_0,95.bmpresult.bmp"; //bulk
+*/
+/*	string imagepath_etalon = "in/output initial.bmp";
+	string imagepath_etalon_1 = "in/output filtr.bmp"; //bulk
+*/	
+	string imagepath_etalon = "in/etalon.bmp";
+	string imagepath_etalon_1 = "in/other.bmp"; //bulk
+
+	// string imagepath_etalon = "in/output0.bmp";
+	// string imagepath_etalon = "in/output.bmp";
+	// string imagepath_etalon_1 = "in/output-6.bmp"; //bulk
+
+	// string imagepath_etalon = "in/output.bmp";
+	// string imagepath_etalon_1 = "in/output_-3.bmp";
+	// string imagepath_etalon_1 = "in/output_-6.bmp"; //bulk
+
+	//test 2
+	// string imagepath_etalon = "in/Razm6_1000.bmp";
+	// string imagepath_etalon = "in/output.bmp";
+	// string imagepath_etalon_1 = "in/output.bmp";
+	// string imagepath_etalon = "in/output0.bmp";
+	// string imagepath_etalon_1 = "in/output0.bmp";
+	// string imagepath_etalon = "in/output-3.bmp";
+	// string imagepath_etalon_1 = "in/output-3.bmp";
+	// string imagepath_etalon_1 = "in/output-6.bmp";
+
+	//test 3
+	// string imagepath_etalon = "in/Razm2_1000.bmp";
+	// string imagepath_etalon = "in/Razm5_1000.bmp";
+	// string imagepath_etalon = "in/Razm6_1000.bmp";
+	// string imagepath_etalon = "in/Razm25_1000.bmp";
+	// string imagepath_etalon = "in/Razm50_1000.bmp";	
+	// string imagepath_etalon = "in/Razm95_1000.bmp";
+	// string imagepath_etalon = "in/Razm28_1000.bmp";
+	// string imagepath_etalon = "in/Razm70_1000.bmp";
+	// string imagepath_etalon_1 = "in/output.bmp";	
+	// string imagepath_etalon_1 = "in/output0.bmp";	
+	// string imagepath_etalon_1 = "in/output-3.bmp";
+	// string imagepath_etalon_1 = "in/output-6.bmp";
 
 	try{
 		seg_etalon.read(imagepath_etalon);
