@@ -11,7 +11,7 @@ using namespace Magick;
 #include <tiffio.h>
 // #include <boost/filesystem.hpp>
 
-// g++ image.cpp -o image `Magick++-config --cppflags --cxxflags --ldflags --libs`
+// g++ image.cpp -o image `Magick++-config --cppflags --cxxflags --ldflags --libs` && ./image
 
 void dump(string variable){
 	cout << variable << endl;
@@ -40,6 +40,12 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	// f<<to_string(bi)+" binary image"<<endl;
 	f<<to_string(bi)+" бинарное изображение"<<endl;
 	dump(to_string(bi)+" binary image");
+
+	// InitializeMagick(*argv);
+	Image dst_image(Geometry(width, height), ColorRGB(MaxRGB, MaxRGB, MaxRGB));
+	
+	dst_image.modifyImage();
+	Pixels dst_view(dst_image);
 
 	//0<bi<7 - number of a binary image
 	int 
@@ -118,17 +124,21 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	hist_image.draw(drawList);
 	drawList.clear();
 
+	//Declare a COPY model of an image for current BI
+	unsigned short **channel_R_ = new unsigned short*[height];
+	for(int i = 0; i < height; i++) {
+		channel_R_[i] = new unsigned short[width];
+	}	
+
 	//обнуление
 	for ( ssize_t row = 0; row < height ; row++ ){
 		for ( ssize_t column = 0; column < width ; column++ ){
 			PI[row][column] = 0.0;
 			pi[row][column] = 0.0;					
 			pi_average[row][column] = 0.0;					
-			channel_R[row][column] = channel_R[row][column]&comporator; //! вычленение бита сразу
+			channel_R_[row][column] = channel_R[row][column]&comporator; //! вычленение бита сразу
 		}
 	}	
-
-	// f<<"Got out a bite succeesfully. Comporator is " + to_string(comporator)<<endl;
 
 	unsigned short  *biElementsFrame = new unsigned short [frameSquare];
 	// unsigned short  *frameElements = new unsigned short [frameSquare];
@@ -143,8 +153,6 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		frameHeightHalfLocal = 1,
 		frameSquareLocal = 1;
 
-	// double chi;
-
 	for ( ssize_t row = 0; row < height ; row++ )//вероятность pi1 pi2
 	{
 		for ( ssize_t column = 0; column < width ; column++ )
@@ -156,7 +164,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
                 {
                     for (ssize_t frameColumn = (column - frameWidthHalf); frameColumn <= (column + frameWidthHalf); frameColumn++)
                     {                    	
-                        biElementsFrame[index] = channel_R[frameRow][frameColumn];
+                        biElementsFrame[index] = channel_R_[frameRow][frameColumn];
                         index++;
                     }
                 }
@@ -278,7 +286,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
             aalpha = 1 - alpha;
 
 			//0x1 1x0
-			if (channel_R[row-1][column] != channel_R[row][column-1]) {
+			if (channel_R_[row-1][column] != channel_R_[row][column-1]) {
 				PI[row][column] = 0.5;
 				// dump(0.5);
 			}
@@ -287,7 +295,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	            pi3 = (double) (alpha * alpha + aalpha * aalpha);
 
 				//000 111
-				if (channel_R[row][column] == channel_R[row][column-1]){
+				if (channel_R_[row][column] == channel_R_[row][column-1]){
 					PI[row][column] = (double) (alpha * alpha / pi3); 
 				}
 				//010 101
@@ -434,7 +442,6 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	// histWidth += 5;
 	hist_image.draw(drawList);
 	drawList.clear();
-	dump("drew histogramm ...");	
 
 	// minimumy)
 	minims[points_number] = true;
@@ -444,13 +451,23 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 
 	// int vicinity = (int) points_number/20;
 	int vicinity = (int) pow(points_number, 0.5);
-
+	
+	//a try
+/*	int vicinity = 1;
+	bool a_vicinity_flag = false;
+	for (int j = 1; j < points_number - 1; j++){
+			for (int k = 1; k < vicinity+1; k++){
+				if (!((points[j]<=points[j-k] & points[j]<points[j+k])||(points[j]<points[j-k] & points[j]<=points[j+k]))){
+					
+				}
+			}		
+	}
+*/
 	for (int j = 1; j < points_number; j++){
 		minims[j] = false;
 	}
 
 	drawList.push_back(DrawableStrokeColor(Color("red")));
-	//реализовать минимум не только по двум соседним
 	if (minims_counter<16){
 		for (int j = vicinity; j < points_number - vicinity; j++){
 			minims[j] = true;
@@ -480,6 +497,18 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	hist_image.draw(drawList);
 	drawList.clear();
 
+	histWidth += 10;
+	histHeight += 40;
+	// dump(histWidth); //2800
+	// dump(histHeight); //900
+
+	hist_image.write(path + "/histogramm " + info + " " + to_string(bi) + ".jpg");
+	// hist_image.write(path + "/histogramm " + to_string(bi) + ".jpg");
+	hist_image.crop(Geometry(histWidth/2+10, histHeight, histWidth/2-5, 0));
+	hist_image.write(path + "/histogramm _ " + info + " " + to_string(bi) + ".jpg");
+	// hist_image.write(path + "/histogramm half " + to_string(bi) + ".jpg");
+	dump("drew histogramm ...");
+
 	//normal colours 255/counter
 	unsigned short  *Colours = new unsigned short [minims_counter];
 	Colours[0] = 0;
@@ -489,14 +518,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 		Colours[ii] = (unsigned short) (255/ii);
 		// f<<"Colour " + to_string(ii) + " is " + to_string(Colours[ii])<<endl;
 		f<<"Цвет номер " + to_string(ii) + " яркости " + to_string(Colours[ii])<<endl;
-
 	}
-
-	//@TODO: реализовать такую штуку: типа если сегментов получилось мало - то и занимать мало разрядов...
-	/*if (comporator == 128)
-		color_header = 4;
-	if (comporator == 64)
-		color_header = 0;*/
 
 	//segmentation
 	for ( ssize_t row = 0; row < height ; row++ ){
@@ -511,8 +533,7 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 						for (int jj = j+1; jj <= points_number; jj++){
 							if (minims[jj]){
 								// dump("point min is in " + to_string(j) + " equal " + to_string(j*accuracy) + " and in " + to_string(jj) + " equal " + to_string(jj*accuracy) + " pi is " + to_string(pi_average[row][column]));
-								if (pi_average[row][column] <= jj*accuracy){
-									// channel_R_S[row][column] += (minims_flag<<color_header);
+								if (pi_average[row][column] <= jj*accuracy){									
 									channel_R_S[row][column] = Colours[minims_flag];
 								}
 							}
@@ -524,6 +545,19 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	}
 	points_number++;
 	dump("segmented ... ");
+
+	Color pixel_color = *(dst_view.get(1,1,1,1));
+
+	//рисуем итоговую карту "слоя"
+	for ( ssize_t row = 0; row < height ; row++ ){
+		for ( ssize_t column = 0; column < width ; column++ ){
+			pixel_color = ColorRGB((double) channel_R_S[row][column]/255, (double) channel_R_S[row][column]/255, (double) channel_R_S[row][column]/255);
+			*(dst_view.get(column,row,1,1)) = pixel_color;
+		}
+	}	
+	dst_view.sync();
+	//запись результата
+	dst_image.write(path + "/output " + info + " " + to_string(bi) +"bi.bmp");
 
 	/*for ( ssize_t row = 0; row < height ; row++ ){
 		for ( ssize_t column = 0; column < width ; column++ ){			
@@ -559,16 +593,11 @@ void channelSegmentation(string path, string info, unsigned short **channel_R, u
 	delete [] points;
 	delete [] minims;
 
-	histWidth += 10;
-	histHeight += 40;
-	// dump(histWidth); //2800
-	// dump(histHeight); //900
-
-	// hist_image.write(path + "/histogramm " + info + " " + to_string(bi) + ".jpg");
-	hist_image.write(path + "/histogramm " + to_string(bi) + ".jpg");
-	hist_image.crop(Geometry(histWidth/2+10, histHeight, histWidth/2-5, 0));
-	// hist_image.write(path + "/histogramm half" + info + " " + to_string(bi) + ".jpg");
-	hist_image.write(path + "/histogramm half " + to_string(bi) + ".jpg");
+	//Destructing the model of an image
+	for(int i = 0; i < height; ++i) {
+		delete [] channel_R_[i];
+	}
+	delete [] channel_R_;
 }
 
 void garbge(int argc,char **argv){
@@ -578,14 +607,14 @@ void garbge(int argc,char **argv){
 		element = 0, //for chi
 		sequences = 0;
 
-	// средние вероятности перехода (канал, направление. по 8 шт.). по сути это не надо. скоро отомрёт само.
+/*	// средние вероятности перехода (канал, направление. по 8 шт.). по сути это не надо. скоро отомрёт само.
 	double 
 		pi1r[8] = {0,0,0,0,0,0,0,0}, 
 		pi2r[8] = {0,0,0,0,0,0,0,0}, 
 		pi1g[8] = {0,0,0,0,0,0,0,0}, 
 		pi2g[8] = {0,0,0,0,0,0,0,0}, 
 		pi1b[8] = {0,0,0,0,0,0,0,0}, 
-		pi2b[8] = {0,0,0,0,0,0,0,0};
+		pi2b[8] = {0,0,0,0,0,0,0,0};*/
 	
 	try {
 		/*
@@ -655,14 +684,7 @@ int main(int argc,char **argv){
 		frameSquare = 0,
 		comporator = 64, 
 		seg_number = 2, //хитрая переменная: говорит, сколько БИ мы сегментируем. причём одна должна увеличиваться, если в старшем БИ мало сегментов и влезет ещё.. во как.	
-		// points_number = 15;
-		// points_number = 250;
-		// points_number = 300;
-		// points_number = 350;
-		points_number = 500;
-		// points_number = 750;
-		// points_number = 1000;
-		// points_number = 1500;
+		points_number = 1000; //ok 500
 
 	InitializeMagick(*argv);
 	// Construct the image object. Seperating image construction from the
@@ -671,35 +693,18 @@ int main(int argc,char **argv){
 	Image src_image;
 	Image seg_test;
 
-	//test
-	// string imagepath = "in/test.bmp"; 
-
 	//misc
+	// string imagepath = "in/test.bmp";
+	// string imagepath = "in/";
+	// string imagepath = "in/1.jpg";
+	string imagepath = "in/2.jpg";
+	// string imagepath = "in/3.jpg";
+	// string imagepath = "in/4.bmp";
+	// string imagepath = "in/5.jpg";
+	// string imagepath = "in/6.jpg";
+	// string imagepath = "in/12 small.jpg";
+	// string imagepath = "in/0_c2405_7b7a3647_orig.jpg";
 	// string imagepath = "in/7637066.jpg"; //a plane
-	// string imagepath = "in/12 copy.jpg";
-	// string imagepath = "in/12.jpg"; 
-	// string imagepath = "in/1.jpg"; 
-	// string imagepath = "in/2.bmp"; 
-	// string imagepath = "in/8KT3mBI3Dfc.jpg"; //---
-	// string imagepath = "in/korabl.jpg"; 
-	// string imagepath = "in/89877.jpg"; 
-	// string imagepath = "in/ring18.jpg"; 
-	// string imagepath = "in/512.jpg"; //----
-	// string imagepath = "in/001.jpg"; 
-	// string imagepath = "in/01try.jpg"; 
-	// string imagepath = "in/02try.jpg"; 
-	// string imagepath = "in/88765.jpg"; 
-	// string imagepath = "in/2.jpg"; 
-	// string imagepath = "in/0036.jpg"; 
-	// string imagepath = "in/olive-tree-plantation.jpg"; 
-	// string imagepath = "in/nag3.jpg"; 
-	// string imagepath = "in/88742.jpg"; 
-	// string imagepath = "in/gorodomlya.jpg"; 
-	// string imagepath = "in/evp_large_foto.jpg"; 
-	// string imagepath = "in/bufer_obmena01.jpg"; 
-	// string imagepath = "in/17526af83f295c67-2729bf8c04e7e751.jpg"; 
-	// string imagepath = "in/07_earth_space.jpg"; 
-	string imagepath = "in/Untitled.jpg"; 
 
 	//test 1
 	// string imagepath = "in/Text0,5_0,95.bmp";
@@ -791,12 +796,12 @@ int main(int argc,char **argv){
 		// frameWidth = pow(log(width)/log(sqrt(2)), 1.11);		
 		frameWidth = log(width)/log(sqrt(2));		
 		if ((frameWidth&1) == 0) frameWidth++;
-			frameWidthHalf = (frameWidth+1)/2;
+		frameWidthHalf = (frameWidth+1)/2;
 		// frameHeight = 21;		
 		// frameHeight = pow(log(height)/log(sqrt(2)), 1.11);
 		frameHeight = log(height)/log(sqrt(2));
 		if ((frameHeight&1) == 0) frameHeight++;
-			frameHeightHalf = (frameHeight+1)/2;
+		frameHeightHalf = (frameHeight+1)/2;
 		frameSquare = frameWidth * frameHeight;
 		
 		//dump
@@ -855,48 +860,44 @@ int main(int argc,char **argv){
 			}
 		}		
 
+		// colourfull = true;
 		//SEGMENTATION
 		if (colourfull)
 		{
-			for (int i=1; i<2; i++){
+			for (int i=7; i>3; i--){	
 				// f<<"Segmenting all channels."<<endl;
 				f<<"Сегментируем все каналы."<<endl;
 				dump("Segmenting all channels.");
 				// last argument is color_header. is 4 for bright colours, 0 for fade colours... (())
-				channelSegmentation(path, "red channel", channel_R, channel_R_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
-				channelSegmentation(path, "green channel", channel_G, channel_G_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
-				channelSegmentation(path, "blue channel", channel_B, channel_B_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);			
+				channelSegmentation(path, "R", channel_R, channel_R_S, width, height, i, points_number, frameWidth, frameHeight, 4);
+				channelSegmentation(path, "G", channel_G, channel_G_S, width, height, i, points_number, frameWidth, frameHeight, 4);
+				channelSegmentation(path, "B", channel_B, channel_B_S, width, height, i, points_number, frameWidth, frameHeight, 4);			
 			}
-			//рисуем итоговую карту
-			for ( ssize_t row = 0; row < height ; row++ ){
-				for ( ssize_t column = 0; column < width ; column++ ){
-					pixel_color = ColorRGB((double) channel_R_S[row][column]/255, (double) channel_G_S[row][column]/255, (double) channel_B_S[row][column]/255);
-					*(dst_view.get(column,row,1,1)) = pixel_color;
-				}
-			}		
+			// //рисуем итоговую карту
+			// for ( ssize_t row = 0; row < height ; row++ ){
+			// 	for ( ssize_t column = 0; column < width ; column++ ){
+			// 		pixel_color = ColorRGB((double) channel_R_S[row][column]/255, (double) channel_G_S[row][column]/255, (double) channel_B_S[row][column]/255);
+			// 		*(dst_view.get(column,row,1,1)) = pixel_color;
+			// 	}
+			// }		
 		}
 		else
 		{
 			// f<<"Segmenting grey."<<endl;
-			dump("Segmenting grey.");			
-			channelSegmentation(path, "Сегментируем полутоновое изображение", channel_Grey, channel_Grey_S, width, height, 5, points_number, frameWidth, frameHeight, 4);
-			/*for (int i=2; i<3; i++){
-				f<<"Segmenting grey."<<endl;
-				dump("Segmenting grey.");				
-				// last argument is color_header. is 4 for bright colours, 0 for fade colours... (())
-				channelSegmentation(path, "grey", channel_Grey, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
-				// channelSegmentation(path, "red channel", channel_R, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
-				// channelSegmentation(path, "green channel", channel_G, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);
-				// channelSegmentation(path, "blue channel", channel_B, channel_Grey_S, width, height, 7-i, points_number, frameWidth, frameHeight, 4);			
-
-			}*/
-			//рисуем итоговую карту
-			for ( ssize_t row = 0; row < height ; row++ ){
-				for ( ssize_t column = 0; column < width ; column++ ){
-					pixel_color = ColorRGB((double) channel_Grey_S[row][column]/255, (double) channel_Grey_S[row][column]/255, (double) channel_Grey_S[row][column]/255);
-					*(dst_view.get(column,row,1,1)) = pixel_color;
-				}
-			}	
+			// dump("Segmenting grey.");		
+			for (int i=7; i>6; i--){	
+				channelSegmentation(path, "grey", channel_Grey, channel_Grey_S, width, height, i, points_number, frameWidth, frameHeight, 4);
+/*				//рисуем итоговую карту "слоя"
+				for ( ssize_t row = 0; row < height ; row++ ){
+					for ( ssize_t column = 0; column < width ; column++ ){
+						pixel_color = ColorRGB((double) channel_Grey_S[row][column]/255, (double) channel_Grey_S[row][column]/255, (double) channel_Grey_S[row][column]/255);
+						*(dst_view.get(column,row,1,1)) = pixel_color;
+					}
+				}	
+				dst_view.sync();
+				//запись результата
+				dst_image.write(path + "/output " + to_string(i) +"bi.bmp");
+*/			}
 		}
 
 		//Destructing the model of an image
@@ -919,13 +920,12 @@ int main(int argc,char **argv){
 		delete [] channel_B_S;
 		delete [] channel_Grey_S;
 
-		dst_view.sync();
-
+		// dst_view.sync();s
 		//запись результата
-		dst_image.write(path + "/output.bmp");
+		// dst_image.write(path + "/output.bmp");
 		src_image.write(path + "/initial.jpg");
 
-		f.close();
+		
 
 		dump("Done"); 		
 	}
@@ -938,5 +938,6 @@ int main(int argc,char **argv){
 	f<<to_string(t_finish - t_start) + " seconds past."<<endl;
 	f<<"Прошло " + to_string(t_finish - t_start) + " секунд."<<endl;
 	dump(to_string(t_finish - t_start) + " seconds past.");
+	f.close();
 	return 0; 
 }
